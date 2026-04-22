@@ -7,6 +7,7 @@
 - 项目总览：README.md
 - 项目计划：docs/project-plan.md
 - 架构设计：docs/architecture.md
+- 内容发布：docs/publishing-workflow.md
 - GitHub Actions / Pages 配置：docs/github-setup.md
 
 ## 当前重构目标
@@ -18,4 +19,4 @@
 
 ## 内容维护方式
 
-未来日常更新时，优先修改 `public/data.json`；前端样式与交互仅在功能升级时变更。
+未来日常更新时，优先通过 `workbench/inbox/` 写草稿，再由 Copilot 协助转换到 `public/data.json`。

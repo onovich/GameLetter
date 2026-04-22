@@ -30,12 +30,30 @@
 
 1. 在 `Settings -> General` 启用 `Discussions`
 2. 访问 `https://giscus.app/zh-CN`
-3. 选择当前仓库与 discussion 分类
-4. 复制配置中的以下值，写入仓库的 GitHub Actions Secrets 或本地 `.env`：
+3. 确认仓库满足公开仓库、已开启 Discussions、当前登录账号对仓库有管理权限
+4. 在 Giscus 页面中选择：
+   - Repository：`onovich/GameLetter`
+   - Page ↔ Discussions Mapping：推荐保持当前项目使用的 `Specific term`
+   - Discussion Category：建议新建或选择一个固定分类，例如 `Announcements`
+5. 复制配置中的以下值，写入仓库的 GitHub Actions Secrets 或本地 `.env.local`：
    - `VITE_GISCUS_REPO`
    - `VITE_GISCUS_REPO_ID`
    - `VITE_GISCUS_CATEGORY`
    - `VITE_GISCUS_CATEGORY_ID`
+
+这些字段的含义：
+
+- `VITE_GISCUS_REPO`：评论要写入的仓库，例如 `onovich/GameLetter`
+- `VITE_GISCUS_REPO_ID`：该仓库在 GitHub 内部的稳定 ID
+- `VITE_GISCUS_CATEGORY`：评论落到哪个 Discussions 分类
+- `VITE_GISCUS_CATEGORY_ID`：该分类在 GitHub 内部的稳定 ID
+
+当前前端使用的映射方式是：
+
+- `data-mapping="specific"`
+- `data-term=issue.id`
+
+这表示：每一期 newsletter 会用自己的 `issue.id` 绑定到一个独立 discussion 主题。
 
 ## 4. 配置 Secrets（可选）
 
@@ -47,7 +65,39 @@
 
 添加对应 `VITE_GISCUS_*` 变量。
 
-## 5. 首次部署检查项
+## 5. 本地配置方式（推荐先验证）
+
+在仓库根目录创建 `.env.local`：
+
+```bash
+cp .env.example .env.local
+```
+
+然后填入 Giscus 页面生成的真实值，再运行：
+
+```bash
+npm run dev
+```
+
+如果页面不再显示“Giscus 尚未配置”，而是出现真实评论区，就说明配置正确。
+
+## 6. 我能否直接替你配置？
+
+我可以：
+
+- 帮你把代码里的接入位准备好
+- 帮你检查 `.env.local`、Secrets 名称和 workflow 是否一致
+- 在你填好配置后帮你验证本地或线上结果
+
+我不能直接替你完成的部分：
+
+- 在 GitHub 网页里启用 Discussions
+- 在 Giscus 页面替你点击生成配置
+- 在 GitHub 仓库后台替你写入 Secrets
+
+这些步骤需要你已登录 GitHub 并在网页中操作。
+
+## 7. 首次部署检查项
 
 - 默认分支为 `main`
 - workflow 位于 `.github/workflows/deploy.yml`

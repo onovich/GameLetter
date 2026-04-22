@@ -54,7 +54,7 @@ export function CommentSection({ issue }) {
       ) : (
         <div className="comment-placeholder">
           <strong>Giscus 尚未配置</strong>
-          <p>请在仓库中启用 Discussions，并设置 `VITE_GISCUS_*` 环境变量后重新部署。</p>
+          <p>请先在 GitHub 中启用 Discussions，再按 `docs/github-setup.md` 配置 `VITE_GISCUS_*` 后重新部署。</p>
         </div>
       )}
     </section>

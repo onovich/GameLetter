@@ -7,7 +7,7 @@ const cardMotion = {
   transition: { duration: 0.35 }
 };
 
-export function NewsItem({ item }) {
+export function NewsItem({ item, onImageClick }) {
   if (item.type === 'link') {
     return (
       <motion.a
@@ -44,8 +44,10 @@ export function NewsItem({ item }) {
 
   if (item.type === 'image') {
     return (
-      <motion.figure {...cardMotion} className="news-card image-card">
-        <img src={item.url} alt={item.caption || 'GameLetter visual'} />
+      <motion.figure {...cardMotion} className="news-card image-card image-card-clickable">
+        <button type="button" className="image-card-button" onClick={() => onImageClick?.(item)}>
+          <img src={item.url} alt={item.caption || 'GameLetter visual'} />
+        </button>
         {item.caption ? <figcaption>{item.caption}</figcaption> : null}
       </motion.figure>
     );
