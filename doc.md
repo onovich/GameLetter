@@ -9,6 +9,7 @@
 - 架构设计：docs/architecture.md
 - 内容模型：docs/content-model.md
 - 内容发布：docs/publishing-workflow.md
+- 编辑模式 / Prompt CMS：docs/prompt-cms.md
 - GitHub Actions / Pages 配置：docs/github-setup.md
 
 ## 当前重构目标

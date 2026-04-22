@@ -220,3 +220,76 @@ target: issue-20260421
 - 用户最好只需要输入极短命令，例如 `发布`
 
 这会让整个发布体验从“手工和 AI 对话”升级成“面向意图的编辑系统”。
+
+## 当前编辑模式工作流
+
+新版本地编辑器已经把界面拆成两个独立工作区：`Capsule` 和 `Issue`。
+
+### Capsule 模式
+
+- 顶部小编辑框输入内容后点击“发布”，会直接生成一条 `create + capsule + target:auto` 的 inbox 操作单。
+- 这类内容在界面中显示为 `待发布`。
+- 如果继续修改一条已发布的 Capsule，会生成或覆盖一条 `update + capsule + target:<capsuleId>` 的 inbox 操作单，界面显示为 `待刷新`。
+- 如果删除一条 `待发布` Capsule，实际行为是直接删掉对应 inbox 草稿。
+- 如果删除一条已发布或待刷新中的 Capsule，实际行为是生成或覆盖一条 `delete + capsule + target:<capsuleId>` 的 inbox 操作单，界面显示为 `待删除`。
+
+### Issue 模式
+
+- 编辑区保存一篇新 Issue 时，会生成一条 `create + issue + target:auto` 的 inbox 操作单，界面显示为 `待发布`。
+- 加载并修改已发布 Issue 后保存，会生成或覆盖一条 `update + issue + target:<issueId>` 的 inbox 操作单，界面显示为 `待刷新`。
+- 删除一条 `待发布` Issue，会直接删掉对应 inbox 草稿。
+- 删除一条已发布或待刷新的 Issue，会生成或覆盖一条 `delete + issue + target:<issueId>` 的 inbox 操作单，界面显示为 `待删除`。
+
+### 状态和 inbox 的一一映射
+
+| 界面状态 | inbox frontmatter | 含义 |
+| --- | --- | --- |
+| 待发布 | `action: create` | 新内容还没进入 `public/data.json` |
+| 待刷新 | `action: update` | 已发布内容存在待应用的修改 |
+| 待删除 | `action: delete` | 已发布内容等待删除 |
+
+`kind` 对应内容类型：
+
+- `kind: capsule`
+- `kind: issue`
+
+`target` 对应目标对象：
+
+- 新建内容通常是 `target: auto`
+- 修改或删除已发布内容时，必须落到明确的 `capsuleId` / `issueId`
+
+## 当你在 Copilot 里输入“发布”时
+
+建议把“发布”理解成：**读取 inbox 中所有待执行操作单，然后逐条处理。**
+
+推荐 Copilot 的处理顺序如下：
+
+1. 读取 `workbench/inbox/`
+2. 将每个文件按 frontmatter 识别为 `create / update / delete`
+3. 再按 `kind` 分成 `capsule` 和 `issue`
+4. 优先处理引用依赖：
+	- 若某个 Issue 引用了还未正式存在的 Capsule，先处理对应 Capsule 的 `create`
+	- 若某个 Capsule 被某个待发布/待刷新 Issue 引用，删除时要先提示引用影响
+5. 输出一份“本次发布摘要”：
+	- 将新增哪些 Capsule / Issue
+	- 将刷新哪些 Capsule / Issue
+	- 将删除哪些 Capsule / Issue
+	- 哪些 Issue 引用了哪些 Capsule
+6. 经确认后再更新 `public/data.json`
+7. 成功后把已处理草稿移出 `workbench/inbox/`，进入归档目录
+
+### 推荐的 Copilot 执行口令
+
+如果你在聊天里只输入：`发布`
+
+Copilot 应默认按下面的内部意图执行：
+
+```text
+读取 workbench/inbox 中全部操作单。
+按 frontmatter 的 action / kind / target 识别每个任务。
+先给出本次将要创建、刷新、删除的 Capsule 和 Issue 摘要。
+检查 Issue 对 Capsule 的引用关系是否有效。
+确认后再更新 public/data.json，并将已完成任务归档。
+```
+
+这样一来，编辑器负责生成“待执行意图”，而 Copilot 负责消费 inbox 并真正落库。

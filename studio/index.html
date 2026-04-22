@@ -3,128 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GameLetter Prompt CMS</title>
+    <title>编辑模式</title>
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
-    <div class="shell">
-      <aside class="panel sidebar">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Prompt CMS</p>
-            <h1>操作单收件箱</h1>
-          </div>
-          <button id="refreshButton" class="ghost-button">刷新</button>
+    <div class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Prompt CMS</p>
+          <h1>编辑模式</h1>
+          <p id="modeSubtitle" class="subtitle">切换到 Capsule 或 Issue，直接开始编辑。</p>
         </div>
+      </header>
 
-        <div class="toolbar stacked">
-          <button id="newDraftButton">新建操作单</button>
-        </div>
+      <nav class="mode-tabs" aria-label="编辑模式切换">
+        <button id="tabCapsule" class="mode-tab active" type="button">Capsule</button>
+        <button id="tabIssue" class="mode-tab" type="button">Issue</button>
+      </nav>
 
-        <div id="draftList" class="draft-list"></div>
-      </aside>
-
-      <main class="panel editor-panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Editor</p>
-            <h2>自然语言操作单</h2>
-          </div>
-          <div class="toolbar compact">
-            <button id="saveButton">保存</button>
-            <button id="deleteButton" class="danger-button">删除</button>
-          </div>
-        </div>
-
-        <label class="field">
-          <span>文件名</span>
-          <input id="fileNameInput" type="text" placeholder="例如：today-publish.md" />
-        </label>
-
-        <label class="field grow">
-          <span>操作内容</span>
-          <textarea id="contentInput" placeholder="例如：把下面 3 个内容点整理成一期 issue，并在第二个 capsule 后加一句 note……"></textarea>
-        </label>
-
-        <div class="card helper-card">
-          <h3>快捷辅助</h3>
-          <div class="toolbar compact wrap">
-            <button id="newCapsuleDraftButton" class="secondary-button">新建 Capsule 草稿</button>
-            <button id="newIssueDraftButton" class="secondary-button">新建 Issue 草稿</button>
-            <button id="normalizeFrontmatterButton" class="ghost-button">规范化头部</button>
-          </div>
-          <p class="hint">这些按钮会帮你写入更稳定的 `action / kind / target` 头部，减少 AI 判断歧义。</p>
-        </div>
-      </main>
-
-      <section class="panel inspector-panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Action Center</p>
-            <h2>发布 / 预览 / 归档</h2>
-          </div>
-        </div>
-
-        <div class="toolbar stacked">
-          <button id="preparePublishButton">发布</button>
-          <button id="preparePreviewButton" class="secondary-button">预览</button>
-          <button id="validateButton" class="ghost-button">校验</button>
-          <button id="archiveButton" class="ghost-button">归档</button>
-        </div>
-
-        <div class="card">
-          <h3>当前推断</h3>
-          <dl id="inferencePanel" class="inference-grid"></dl>
-        </div>
-
-        <div class="card">
-          <h3>内部 Prompt</h3>
-          <p class="hint">这是 CMS 自动生成给 Copilot 的内部指令模板，用户不需要自己手写。</p>
-          <textarea id="promptOutput" readonly></textarea>
-        </div>
-
-        <div class="card">
-          <h3>数据源概览</h3>
-          <div id="dataOverview" class="stats-grid"></div>
-        </div>
-
-        <div class="card">
-          <h3>发布前校验</h3>
-          <div id="validationPanel" class="validation-panel">
-            <p class="hint">点击“校验”后查看当前操作单的风险与提示。</p>
-          </div>
-        </div>
-
-        <div class="card data-library-card">
-          <div class="section-head">
-            <h3>Issue 选择器</h3>
-            <span class="hint">用于编辑 / 删除目标</span>
-          </div>
-          <div id="issueLibrary" class="library-list"></div>
-        </div>
-
-        <div class="card data-library-card">
-          <div class="section-head">
-            <h3>Capsule 选择器</h3>
-            <span class="hint">可设为目标，也可插入到 Issue 草稿中</span>
-          </div>
-          <div id="capsuleLibrary" class="library-list"></div>
-        </div>
-
-        <div class="card">
-          <h3>最新 request</h3>
-          <pre id="requestMeta" class="request-meta">尚未生成 request</pre>
-        </div>
-
-        <div class="card">
-          <h3>request 历史</h3>
-          <div id="pendingList" class="pending-list">
-            <p class="hint">还没有 request 记录。</p>
-          </div>
-        </div>
-      </section>
+      <div class="workspace">
+        <main class="main-column">
+          <section id="modePrimary"></section>
+          <section id="modeSecondary"></section>
+        </main>
+        <aside id="modeSide" class="side-column"></aside>
+      </div>
     </div>
 
+    <div id="floatingSuggestion" class="floating-suggestion hidden"></div>
     <div id="toast" class="toast hidden"></div>
     <script type="module" src="/app.js"></script>
   </body>
