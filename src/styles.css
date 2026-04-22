@@ -244,6 +244,27 @@ input:focus {
   background: color-mix(in srgb, var(--accent) 10%, white) !important;
 }
 
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  text-decoration: none;
+  box-shadow: none;
+  transition: transform 160ms ease, box-shadow var(--theme-transition-duration) ease, background var(--theme-transition-duration) ease, color var(--theme-transition-duration) ease, border-color var(--theme-transition-duration) ease;
+}
+
+.ghost:hover,
+.ghost:focus-visible {
+  border-color: var(--border-strong);
+}
+
 .topbar-actions a:hover,
 .topbar-actions button:hover,
 .issue-button:hover {
