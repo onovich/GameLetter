@@ -39,6 +39,21 @@
         <p id="lightboxCaption" class="lightbox-caption"></p>
       </div>
     </div>
+    <div id="commandDialog" class="action-dialog-backdrop hidden" aria-hidden="true">
+      <div class="action-dialog" role="dialog" aria-modal="true" aria-labelledby="commandDialogTitle">
+        <div class="action-dialog-head">
+          <div>
+            <p class="eyebrow">Slash Command</p>
+            <h3 id="commandDialogTitle">插入内容</h3>
+          </div>
+        </div>
+        <div id="commandDialogBody" class="action-dialog-body"></div>
+        <div class="action-dialog-actions">
+          <button type="button" class="ghost" data-action="command-dialog-cancel">取消</button>
+          <button type="button" data-action="command-dialog-confirm">确认</button>
+        </div>
+      </div>
+    </div>
     <div id="toast" class="toast hidden"></div>
     <script type="module" src="/app.js"></script>
   </body>

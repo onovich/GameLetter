@@ -141,6 +141,9 @@ const elements = {
   lightboxImage: document.getElementById('lightboxImage'),
   lightboxCaption: document.getElementById('lightboxCaption'),
   lightboxClose: document.getElementById('lightboxClose'),
+  commandDialog: document.getElementById('commandDialog'),
+  commandDialogTitle: document.getElementById('commandDialogTitle'),
+  commandDialogBody: document.getElementById('commandDialogBody'),
   toast: document.getElementById('toast')
 };
 
@@ -167,6 +170,12 @@ const state = {
     open: false,
     url: '',
     caption: ''
+  },
+  commandDialog: {
+    open: false,
+    title: '',
+    fields: [],
+    resolve: null
   },
   settings: loadStoredSettings(),
   ui: {
@@ -388,6 +397,67 @@ function closeLightbox() {
   if (elements.lightboxCaption) {
     elements.lightboxCaption.textContent = '';
   }
+}
+
+function renderCommandDialog() {
+  if (!elements.commandDialog || !elements.commandDialogBody || !elements.commandDialogTitle) {
+    return;
+  }
+
+  if (!state.commandDialog.open) {
+    elements.commandDialog.classList.add('hidden');
+    elements.commandDialog.setAttribute('aria-hidden', 'true');
+    elements.commandDialogBody.innerHTML = '';
+    return;
+  }
+
+  elements.commandDialog.classList.remove('hidden');
+  elements.commandDialog.setAttribute('aria-hidden', 'false');
+  elements.commandDialogTitle.textContent = state.commandDialog.title || '插入内容';
+  elements.commandDialogBody.innerHTML = state.commandDialog.fields.map((field) => `
+    <div class="action-dialog-field">
+      <label for="command-field-${field.key}">${escapeHtml(field.label)}</label>
+      <input id="command-field-${field.key}" data-command-field="${field.key}" type="text" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}" />
+    </div>
+  `).join('');
+
+  requestAnimationFrame(() => {
+    elements.commandDialogBody.querySelector('[data-command-field]')?.focus();
+  });
+}
+
+function openCommandDialog({ title = '插入内容', fields = [] } = {}) {
+  return new Promise((resolve) => {
+    state.commandDialog = {
+      open: true,
+      title,
+      fields: fields.map((field) => ({ ...field })),
+      resolve
+    };
+    renderCommandDialog();
+  });
+}
+
+function closeCommandDialog(result = null) {
+  const resolver = state.commandDialog.resolve;
+  state.commandDialog = {
+    open: false,
+    title: '',
+    fields: [],
+    resolve: null
+  };
+  renderCommandDialog();
+  if (resolver) {
+    resolver(result);
+  }
+}
+
+function confirmCommandDialog() {
+  const values = {};
+  elements.commandDialogBody?.querySelectorAll('[data-command-field]').forEach((input) => {
+    values[input.dataset.commandField] = input.value;
+  });
+  closeCommandDialog(values);
 }
 
 function uid(prefix = 'id') {
@@ -1424,14 +1494,51 @@ function applyMentionSuggestion(capsuleId) {
   hideSuggestion();
 }
 
-function insertCapsuleImageFromCommand(owner, blockId) {
+async function collectImageBlockInput(initialValue = {}) {
+  const values = await openCommandDialog({
+    title: '插入图片',
+    fields: [
+      { key: 'url', label: '图片链接', value: initialValue.url || '', placeholder: 'https://example.com/image.jpg' },
+      { key: 'caption', label: '图片说明', value: initialValue.caption || '', placeholder: '可选' }
+    ]
+  });
+
+  if (!values) {
+    return null;
+  }
+
+  return {
+    url: String(values.url || '').trim(),
+    caption: String(values.caption || '').trim()
+  };
+}
+
+async function collectLinkBlockInput(initialValue = {}) {
+  const values = await openCommandDialog({
+    title: '插入链接',
+    fields: [
+      { key: 'text', label: '链接文字', value: initialValue.text || '', placeholder: '例如：打开原文' },
+      { key: 'url', label: '链接地址', value: initialValue.url || '', placeholder: 'https://example.com' }
+    ]
+  });
+
+  if (!values) {
+    return null;
+  }
+
+  return {
+    text: String(values.text || '').trim(),
+    url: String(values.url || '').trim()
+  };
+}
+
+async function insertCapsuleImageFromCommand(owner, blockId) {
   const suggestionSnapshot = { ...state.suggestion };
-  const url = window.prompt('输入图片链接');
-  if (!url) {
+  const image = await collectImageBlockInput();
+  if (!image?.url) {
     hideSuggestion();
     return;
   }
-  const caption = window.prompt('输入图片说明（可选）') || '';
   const blocks = [...getCapsuleEditorBlocks(owner)];
   const blockIndex = blocks.findIndex((block) => block.id === blockId);
   if (blockIndex === -1) {
@@ -1451,7 +1558,7 @@ function insertCapsuleImageFromCommand(owner, blockId) {
     if (cleanedText) {
       nextBlocks.push({ ...block, text: cleanedText });
     }
-    nextBlocks.push(createImageBlock(url, caption));
+    nextBlocks.push(createImageBlock(image.url, image.caption));
     const trailingTextBlock = createTextBlock('');
     nextBlocks.push(trailingTextBlock);
     state.ui.capsule.focusTarget = `${owner}:${trailingTextBlock.id}`;
@@ -1462,21 +1569,9 @@ function insertCapsuleImageFromCommand(owner, blockId) {
   hideSuggestion();
 }
 
-function promptForLinkBlock(initialText = '', initialUrl = '') {
-  const text = window.prompt('输入链接文字', initialText || '');
-  if (text === null) {
-    return null;
-  }
-  const url = window.prompt('输入链接地址', initialUrl || '');
-  if (url === null) {
-    return null;
-  }
-  return { text: text.trim(), url: url.trim() };
-}
-
-function insertCapsuleLinkFromCommand(owner, blockId) {
+async function insertCapsuleLinkFromCommand(owner, blockId) {
   const suggestionSnapshot = { ...state.suggestion };
-  const link = promptForLinkBlock('', '');
+  const link = await collectLinkBlockInput();
   if (!link) {
     hideSuggestion();
     return;
@@ -1499,7 +1594,7 @@ function insertCapsuleLinkFromCommand(owner, blockId) {
     if (cleanedText) {
       nextBlocks.push({ ...block, text: cleanedText });
     }
-    nextBlocks.push(createLinkBlock(link.text, link.url));
+    nextBlocks.push(createLinkBlock(link.text || link.url, link.url));
     const trailingTextBlock = createTextBlock('');
     nextBlocks.push(trailingTextBlock);
     state.ui.capsule.focusTarget = `${owner}:${trailingTextBlock.id}`;
@@ -1510,9 +1605,9 @@ function insertCapsuleLinkFromCommand(owner, blockId) {
   hideSuggestion();
 }
 
-function insertIssueLinkFromCommand(owner, blockId) {
+async function insertIssueLinkFromCommand(owner, blockId) {
   const suggestionSnapshot = { ...state.suggestion };
-  const link = promptForLinkBlock('', '');
+  const link = await collectLinkBlockInput();
   if (!link) {
     hideSuggestion();
     return;
@@ -1535,7 +1630,7 @@ function insertIssueLinkFromCommand(owner, blockId) {
     if (cleanedText) {
       nextBlocks.push({ ...block, text: cleanedText });
     }
-    nextBlocks.push(createLinkBlock(link.text, link.url));
+    nextBlocks.push(createLinkBlock(link.text || link.url, link.url));
     const trailingTextBlock = createTextBlock('');
     nextBlocks.push(trailingTextBlock);
     state.ui.issue.focusTarget = `${owner}:${trailingTextBlock.id}`;
@@ -1546,21 +1641,21 @@ function insertIssueLinkFromCommand(owner, blockId) {
   hideSuggestion();
 }
 
-function applySlashSuggestion(commandId) {
+async function applySlashSuggestion(commandId) {
   const { owner, blockId } = parseEditorTarget(state.suggestion.target);
   const textarea = document.querySelector(`[data-capsule-text-target="${state.suggestion.target}"]`) || document.querySelector(`[data-issue-text-target="${state.suggestion.target}"]`);
   if (!owner || !blockId || !textarea) {
     return;
   }
   if (commandId === 'image' && textarea.matches('[data-capsule-text-target]')) {
-    insertCapsuleImageFromCommand(owner, blockId);
+    await insertCapsuleImageFromCommand(owner, blockId);
     return;
   }
   if (commandId === 'link') {
     if (textarea.matches('[data-capsule-text-target]')) {
-      insertCapsuleLinkFromCommand(owner, blockId);
+      await insertCapsuleLinkFromCommand(owner, blockId);
     } else {
-      insertIssueLinkFromCommand(owner, blockId);
+      await insertIssueLinkFromCommand(owner, blockId);
     }
   }
 }
@@ -1620,14 +1715,14 @@ function updateCapsuleImage(owner, blockId) {
   if (!block) {
     return;
   }
-  const url = window.prompt('输入图片链接', block.url || '');
-  if (url === null) {
-    return;
-  }
-  const caption = window.prompt('输入图片说明（可选）', block.caption || '');
-  block.url = url;
-  block.caption = caption === null ? block.caption : caption;
-  renderCapsuleWorkspace();
+  collectImageBlockInput({ url: block.url || '', caption: block.caption || '' }).then((image) => {
+    if (!image) {
+      return;
+    }
+    block.url = image.url;
+    block.caption = image.caption;
+    renderCapsuleWorkspace();
+  });
 }
 
 function updateCapsuleLink(owner, blockId) {
@@ -1635,13 +1730,14 @@ function updateCapsuleLink(owner, blockId) {
   if (!block) {
     return;
   }
-  const link = promptForLinkBlock(block.text || '', block.url || '');
-  if (!link) {
-    return;
-  }
-  block.text = link.text;
-  block.url = link.url;
-  renderCapsuleWorkspace();
+  collectLinkBlockInput({ text: block.text || '', url: block.url || '' }).then((link) => {
+    if (!link) {
+      return;
+    }
+    block.text = link.text || link.url;
+    block.url = link.url;
+    renderCapsuleWorkspace();
+  });
 }
 
 function setSelectedCapsuleImage(owner, blockId) {
@@ -2017,7 +2113,9 @@ function renderCapsuleEditorBlocks(owner, blocks) {
     return `
       ${dropZone}
       <div class="capsule-block text-block-row">
-        <textarea class="capsule-card-editor" data-capsule-text-target="${owner}:${block.id}" placeholder="${index === 0 ? '写点内容，输入 # 可以补标签' : ''}">${escapeHtml(block.text || '')}</textarea>
+        <div class="text-shell compact">
+          <textarea class="capsule-card-editor" data-capsule-text-target="${owner}:${block.id}" placeholder="${index === 0 ? '写点内容，输入 / 可插入图片和链接，输入 # 可以补标签' : ''}">${escapeHtml(block.text || '')}</textarea>
+        </div>
       </div>
     `;
   }).join('') + `<button class="block-insert-anchor" data-action="capsule-insert-text" data-index="${blocks.length}" data-owner="${owner}" data-drop-index="${blocks.length}" data-drop-context="capsule" data-drop-owner="${owner}" aria-label="在这里插入内容"></button>`;
@@ -2463,13 +2561,14 @@ function updateIssueLink(owner, blockId) {
   if (!block) {
     return;
   }
-  const link = promptForLinkBlock(block.text || '', block.url || '');
-  if (!link) {
-    return;
-  }
-  block.text = link.text;
-  block.url = link.url;
-  renderIssueWorkspace();
+  collectLinkBlockInput({ text: block.text || '', url: block.url || '' }).then((link) => {
+    if (!link) {
+      return;
+    }
+    block.text = link.text || link.url;
+    block.url = link.url;
+    renderIssueWorkspace();
+  });
 }
 
 function insertIssueBlock(owner, index) {
@@ -2608,6 +2707,12 @@ function handleClick(event) {
       break;
     case 'lightbox-close':
       closeLightbox();
+      break;
+    case 'command-dialog-cancel':
+      closeCommandDialog(null);
+      break;
+    case 'command-dialog-confirm':
+      confirmCommandDialog();
       break;
     case 'capsule-publish':
       publishCapsuleFromComposer().catch((error) => showToast(error.message, 'error'));
@@ -2817,6 +2922,10 @@ function handleInput(event) {
 
 function handleKeyDown(event) {
   if (event.key === 'Escape') {
+    if (state.commandDialog.open) {
+      closeCommandDialog(null);
+      return;
+    }
     if (state.lightbox.open) {
       closeLightbox();
       return;
@@ -2907,6 +3016,7 @@ async function bootstrap() {
   state.settings = loadStoredSettings();
   applySettingsTheme();
   renderSettingsPanel();
+  renderCommandDialog();
   setSettingsPanelOpen(false);
   state.ui.issue.editor = createEmptyIssueEditor();
   state.ui.capsule.composerBlocks = [createTextBlock('')];

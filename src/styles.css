@@ -1013,9 +1013,9 @@ input:focus {
 }
 
 .browse-card.active {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow);
-  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(79, 70, 229, 0.26);
+  box-shadow: 0 16px 28px rgba(79, 70, 229, 0.12);
+  background: var(--panel-strong);
 }
 
 .capsule-card,
@@ -1166,6 +1166,21 @@ input:focus {
   border-radius: 20px;
 }
 
+.image-block-preview {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  position: relative;
+  justify-items: start;
+}
+
+.link-block-preview {
+  width: min(100%, 520px);
+}
+
 .image-frame-button {
   display: block;
   width: min(100%, var(--thumbnail-width));
@@ -1181,6 +1196,8 @@ input:focus {
 
 .image-frame {
   position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   border: none;
   border-radius: 0;
@@ -1189,7 +1206,7 @@ input:focus {
 
 .image-block-media {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   object-fit: cover;
   object-position: center;
   background: rgba(226, 232, 240, 0.7);
@@ -1205,13 +1222,23 @@ input:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid rgba(116, 167, 247, 0.24);
+  gap: 18px;
+  width: 100%;
+  min-height: 88px;
+  padding: 16px 18px;
+  border: 1px solid var(--link-border, rgba(116, 167, 247, 0.24));
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(116, 167, 247, 0.12), rgba(255, 255, 255, 0.88));
-  color: inherit;
+  background: var(--link-bg, linear-gradient(135deg, rgba(116, 167, 247, 0.12), rgba(255, 255, 255, 0.88)));
+  color: var(--link-color, inherit);
   text-decoration: none;
+  text-align: left;
+  box-shadow: var(--shadow-soft);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.link-block-surface:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--link-color, var(--accent)) 34%, white);
 }
 
 .link-block-copy {
@@ -1227,8 +1254,8 @@ input:focus {
   min-height: 22px;
   padding: 0 8px;
   border-radius: 999px;
-  background: rgba(116, 167, 247, 0.12);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--link-color, var(--accent)) 12%, white);
+  color: var(--link-color, var(--accent));
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -1236,20 +1263,24 @@ input:focus {
 }
 
 .link-block-title {
-  color: var(--heading);
-  font-size: 16px;
+  color: var(--link-color, var(--heading));
+  font-size: 15px;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .link-block-url {
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.5;
   word-break: break-all;
 }
 
 .link-block-arrow {
+  flex: 0 0 auto;
   font-size: 18px;
-  color: var(--accent);
+  font-weight: 700;
+  color: color-mix(in srgb, var(--link-color, var(--accent)) 76%, white);
 }
 
 .capsule-preview-link {
@@ -1310,8 +1341,12 @@ input:focus {
 
 .card-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .compact-tool,
@@ -1355,14 +1390,14 @@ input:focus {
 }
 
 .issue-note-block {
-  padding: 18px;
+  padding: 20px 22px;
   border: 1px dashed rgba(116, 167, 247, 0.3);
   border-radius: 20px;
   background: rgba(116, 167, 247, 0.07);
 }
 
 .issue-note-label {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   color: var(--accent);
   font-size: 11px;
   font-weight: 800;

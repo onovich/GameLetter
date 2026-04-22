@@ -253,9 +253,7 @@ function EmbeddedCapsuleCard({ capsule, onOpenCapsule, onImageClick }) {
     >
       <div className="item-head">
         <div className="item-main item-main-compact">
-          <div className="item-meta">
-            <span className="hint item-timestamp">{capsule.dateLabel}</span>
-          </div>
+          <p className="hint">@ 引入的 Capsule block</p>
         </div>
       </div>
 
