@@ -134,3 +134,26 @@
 ## 详细规格
 
 更完整的 Prompt CMS 设计见：`docs/prompt-cms.md`
+
+## Prompt CMS v1 启动方式
+
+在仓库根目录运行：
+
+```bash
+npm run cms
+```
+
+然后打开：`http://localhost:4318`
+
+当前版本支持：
+
+- 浏览 inbox 操作单
+- 新建 / 编辑 / 删除操作单
+- 一键生成发布 request
+- 一键生成预览 request
+- 一键归档到 `workbench/archive/`
+- 自动写出：
+	- `workbench/pending/latest-request.json`
+	- `workbench/pending/latest-prompt.txt`
+
+因此，后续你在 Copilot 中只需要发出短命令：`发布`，就可以让 Copilot 读取最新 request 并继续执行。

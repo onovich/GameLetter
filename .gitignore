@@ -12,3 +12,5 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 coverage/
+workbench/pending/*.json
+workbench/pending/*.txt

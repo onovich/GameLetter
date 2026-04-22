@@ -44,6 +44,27 @@ npm install
 npm run dev
 ```
 
+## Prompt CMS v1
+
+启动本地 Prompt CMS：
+
+```bash
+npm run cms
+```
+
+然后访问：`http://localhost:4318`
+
+当前版本支持：
+
+- inbox 操作单列表与编辑
+- 生成发布 request
+- 生成预览 request
+- 归档草稿
+- 自动输出内部 prompt 到 `workbench/pending/latest-prompt.txt`
+- 自动输出最新 request 到 `workbench/pending/latest-request.json`
+
+当前版本还不会从网页里直接触发 Copilot，但已经把“发布”所需的内部 prompt 和 request 准备好了。
+
 ## 构建发布
 
 ```bash
