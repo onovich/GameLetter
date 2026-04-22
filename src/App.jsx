@@ -528,7 +528,7 @@ function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick }) {
 
 function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById }) {
   return (
-    <motion.article {...cardMotion} className={`issue-list-item published browse-card ${active ? 'active' : ''}`}>
+    <motion.article {...cardMotion} className="issue-list-item published browse-card">
       <div className="item-head">
         <div className="item-main">
           <button type="button" className="item-title-trigger" onClick={() => onOpenIssue(issue.slug)}>
@@ -576,7 +576,7 @@ function BrowseCapsuleCard({ capsule, active, onOpenCapsule, onImageClick, onTog
   const previewText = !active ? getCapsulePreviewText(blocks, capsule.summary || '') : '';
 
   return (
-    <motion.article {...cardMotion} className={`capsule-card published browse-card ${active ? 'active' : ''}`} onClick={() => onOpenCapsule(capsule.slug)}>
+    <motion.article {...cardMotion} className="capsule-card published browse-card" onClick={() => onOpenCapsule(capsule.slug)}>
       <div className="item-head">
         <div className="item-main item-main-compact">
           <div className="item-meta">
@@ -859,7 +859,7 @@ export default function App() {
           <section className="card side-card browse-search-card">
             <input
               className="search-input"
-              type="search"
+              type="text"
               value={currentSearch}
               onChange={(event) => setSearchByMode((prev) => ({ ...prev, [mode]: event.target.value }))}
               placeholder={`搜索${mode === 'capsule' ? ' Capsule' : ' Issue'}`}
