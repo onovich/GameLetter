@@ -1,7 +1,42 @@
 import { useEffect, useState } from 'react';
 
+const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+});
+
+function toDateLabel(value) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return dateFormatter.format(date);
+}
+
+function normalizeEntry(entry, kind) {
+  return {
+    ...entry,
+    kind,
+    dateLabel: entry.date || toDateLabel(entry.publishedAt),
+    visibility: {
+      direct: true,
+      search: true,
+      homepage: kind === 'issue',
+      feed: kind === 'issue',
+      rss: kind === 'issue',
+      ...(entry.visibility || {})
+    }
+  };
+}
+
 export function useNewsletterData() {
-  const [data, setData] = useState({ site: null, issues: [] });
+  const [data, setData] = useState({ site: null, features: {}, capsules: [], issues: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -17,7 +52,12 @@ export function useNewsletterData() {
         }
         const payload = await response.json();
         if (!cancelled) {
-          setData(payload);
+          setData({
+            site: payload.site,
+            features: payload.features || {},
+            capsules: (payload.capsules || []).map((entry) => normalizeEntry(entry, 'capsule')),
+            issues: (payload.issues || []).map((entry) => normalizeEntry(entry, 'issue'))
+          });
           setError('');
         }
       } catch (loadError) {

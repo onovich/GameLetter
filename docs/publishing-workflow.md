@@ -10,6 +10,11 @@
 - `workbench/archive/`：已经发布的原始稿件归档
 - `public/data.json`：正式线上内容源
 
+## 现在的内容发布目标分为两类
+
+- `Capsule`：可独立访问、可被搜索命中、默认不进首页 / RSS 的内容胶囊
+- `Issue`：由多个 Capsule 与若干 note 编排而成的正式发布单元
+
 ## 推荐操作流程
 
 ### 阶段 A：写稿
@@ -25,9 +30,11 @@
 
 Copilot 负责：
 
+- 判断这次稿件更适合成为 `Capsule` 还是 `Issue`
 - 提取标题
 - 生成摘要
 - 按发布时间生成 `id`
+- 生成 `slug`
 - 识别链接、短评、图片内容
 - 输出 tags 候选清单
 
@@ -57,6 +64,36 @@ Copilot 执行：
 3. 提交 Git 改动
 4. 推送到 `main`
 5. 将原始稿件移动到 `workbench/archive/`
+
+## 双轨发布策略
+
+### 只发布 Capsule
+
+适用场景：
+
+- 只是想沉淀一个可检索内容单元
+- 暂时不希望它进入首页或 RSS
+
+发布结果：
+
+- 写入 `capsules`
+- 生成 Capsule 独立访问页
+- 更新搜索能力
+- 不进入首页流和 RSS
+
+### 发布 Issue
+
+适用场景：
+
+- 要正式发布一期 newsletter
+- 需要编排多个 Capsule 并插入短评
+
+发布结果：
+
+- 写入 `issues`
+- 若引用了新 Capsule，则一并写入 `capsules`
+- 首页流可见
+- RSS 可订阅
 
 ## 关于自动化程度
 

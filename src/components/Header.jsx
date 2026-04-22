@@ -1,6 +1,6 @@
 import { Github, Rss, Search, Share2 } from 'lucide-react';
 
-export function Header({ site, searchValue, onSearchChange, onShare }) {
+export function Header({ site, searchValue, searchScope, onSearchChange, onSearchScopeChange, onShare }) {
   return (
     <header className="topbar">
       <div className="brand-block">
@@ -11,15 +11,25 @@ export function Header({ site, searchValue, onSearchChange, onShare }) {
         </div>
       </div>
 
-      <label className="search-box" aria-label="搜索简报">
-        <Search size={16} />
-        <input
-          type="search"
-          value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索标题、摘要、标签"
-        />
-      </label>
+      <div className="search-cluster">
+        <label className="search-box" aria-label="搜索内容">
+          <Search size={16} />
+          <input
+            type="search"
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="搜索标题、摘要、标签"
+          />
+        </label>
+
+        <label className="scope-select-wrap" aria-label="搜索范围">
+          <select value={searchScope} onChange={(event) => onSearchScopeChange(event.target.value)}>
+            <option value="all">全部</option>
+            <option value="issues">Issue</option>
+            <option value="capsules">Capsule</option>
+          </select>
+        </label>
+      </div>
 
       <nav className="topbar-actions">
         <a href={site?.rssPath || '/rss.xml'} target="_blank" rel="noreferrer">

@@ -4,7 +4,7 @@ import path from 'node:path';
 const rootDir = process.cwd();
 const dataPath = path.join(rootDir, 'public', 'data.json');
 const rssPath = path.join(rootDir, 'public', 'rss.xml');
-const siteUrl = 'https://onovich.github.io/GameLetter/';
+const fallbackSiteUrl = 'https://onovich.github.io/GameLetter/';
 
 const escapeXml = (value = '') =>
   value
@@ -18,17 +18,19 @@ const main = async () => {
   const raw = await fs.readFile(dataPath, 'utf8');
   const data = JSON.parse(raw);
   const { site, issues = [] } = data;
+  const siteUrl = site?.baseUrl || fallbackSiteUrl;
 
   const items = issues
+    .filter((issue) => issue.visibility?.rss !== false)
     .map((issue) => {
-      const issueUrl = `${siteUrl}#${issue.id}`;
+      const issueUrl = `${siteUrl}#/issues/${issue.slug || issue.id}`;
       return `
     <item>
       <title>${escapeXml(issue.title)}</title>
       <description>${escapeXml(issue.summary)}</description>
       <link>${issueUrl}</link>
       <guid>${issueUrl}</guid>
-      <pubDate>${new Date(issue.id).toUTCString()}</pubDate>
+      <pubDate>${new Date(issue.publishedAt || issue.id).toUTCString()}</pubDate>
     </item>`;
     })
     .join('');

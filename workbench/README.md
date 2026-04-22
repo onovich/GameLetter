@@ -30,10 +30,11 @@
 Copilot 处理时会做这些事：
 
 - 读取草稿
+- 自动判断你这次更适合发布 `Capsule` 还是 `Issue`
 - 自动提取标题
 - 自动生成摘要
-- 自动生成 `id`
-- 自动识别内容项并转换成 `link` / `thought` / `image`
+- 自动生成 `id` 与 `slug`
+- 自动识别内容项并转换成 `capsule-ref` / `note` 或 `payload`
 - 自动给出一份 tags 候选清单，等待你确认
 
 ### 3. 预览
@@ -60,6 +61,24 @@ Copilot 处理时会做这些事：
 - 重新生成 RSS
 - 提交并推送到远端
 - 将原始草稿移动到 `workbench/archive/`
+
+## Capsule 与 Issue 的发布区别
+
+### 发布 Capsule
+
+- 适合沉淀单个链接、图像、观点或工具条目
+- 可通过直链访问
+- 可通过搜索命中
+- 不出现在首页流
+- 不进入 RSS
+
+### 发布 Issue
+
+- 适合对外正式发布一期 newsletter / digest
+- 由多个 Capsule 与若干 note 组成
+- 会出现在首页流
+- 会进入 RSS
+- Issue 内部可以嵌入已存在的 Capsule
 
 ## 草稿书写建议
 

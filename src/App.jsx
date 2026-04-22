@@ -1,11 +1,38 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Header } from './components/Header';
-import { IssueSidebar } from './components/IssueSidebar';
-import { NewsItem } from './components/NewsItem';
+import { ContentSidebar } from './components/ContentSidebar';
+import { CapsuleCard } from './components/CapsuleCard';
+import { IssueComposer } from './components/IssueComposer';
 import { CommentSection } from './components/CommentSection';
 import { Footer } from './components/Footer';
 import { useNewsletterData } from './hooks/useNewsletterData';
+
+const containerMotion = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+  transition: { duration: 0.35 }
+};
+
+function parseHashRoute(hash) {
+  const normalized = hash.replace(/^#/, '');
+  const parts = normalized.split('/').filter(Boolean);
+
+  if (parts[0] === 'issues' && parts[1]) {
+    return { kind: 'issue', slug: decodeURIComponent(parts[1]) };
+  }
+
+  if (parts[0] === 'capsules' && parts[1]) {
+    return { kind: 'capsule', slug: decodeURIComponent(parts[1]) };
+  }
+
+  return { kind: 'home', slug: '' };
+}
+
+function buildHash(kind, slug) {
+  return `/${kind === 'issue' ? 'issues' : 'capsules'}/${encodeURIComponent(slug)}`;
+}
 
 function Lightbox({ image, onClose }) {
   useEffect(() => {
@@ -53,50 +80,100 @@ function Lightbox({ image, onClose }) {
   );
 }
 
-const containerMotion = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-  transition: { duration: 0.35 }
-};
-
 export default function App() {
-  const { site, issues, loading, error } = useNewsletterData();
+  const { site, features, capsules, issues, loading, error } = useNewsletterData();
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState('');
+  const [searchScope, setSearchScope] = useState('all');
+  const [route, setRoute] = useState(() => parseHashRoute(window.location.hash));
   const [lightboxImage, setLightboxImage] = useState(null);
 
-  const filteredIssues = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) {
-      return issues;
-    }
-
-    return issues.filter((issue) => {
-      const text = [issue.title, issue.summary, ...(issue.tags || [])]
-        .join(' ')
-        .toLowerCase();
-      return text.includes(keyword);
-    });
-  }, [issues, search]);
+  useEffect(() => {
+    const handleHashChange = () => setRoute(parseHashRoute(window.location.hash));
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
-    if (!selectedId && issues.length > 0) {
-      setSelectedId(issues[0].id);
+    if (!features?.searchScopes?.length) {
       return;
     }
 
-    if (selectedId && !filteredIssues.some((issue) => issue.id === selectedId)) {
-      setSelectedId(filteredIssues[0]?.id || '');
+    if (!features.searchScopes.includes(searchScope)) {
+      setSearchScope(features.searchScopes[0]);
     }
-  }, [issues, filteredIssues, selectedId]);
+  }, [features, searchScope]);
 
-  const selectedIssue = filteredIssues.find((issue) => issue.id === selectedId) || filteredIssues[0];
+  const sortedIssues = useMemo(
+    () => [...issues].sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
+    [issues]
+  );
+
+  const feedIssues = useMemo(
+    () => sortedIssues.filter((issue) => issue.visibility.homepage !== false),
+    [sortedIssues]
+  );
+
+  const capsulesById = useMemo(() => new Map(capsules.map((capsule) => [capsule.id, capsule])), [capsules]);
+  const issuesBySlug = useMemo(() => new Map(issues.map((issue) => [issue.slug, issue])), [issues]);
+  const capsulesBySlug = useMemo(() => new Map(capsules.map((capsule) => [capsule.slug, capsule])), [capsules]);
+
+  const searchResults = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+
+    const includes = (entry) => {
+      const text = [entry.title, entry.summary, ...(entry.tags || [])].join(' ').toLowerCase();
+      return text.includes(query);
+    };
+
+    const results = [];
+
+    if (searchScope === 'all' || searchScope === 'issues') {
+      sortedIssues
+        .filter((entry) => entry.visibility.search !== false && includes(entry))
+        .forEach((entry) => results.push(entry));
+    }
+
+    if (searchScope === 'all' || searchScope === 'capsules') {
+      capsules
+        .filter((entry) => entry.visibility.search !== false && includes(entry))
+        .forEach((entry) => results.push(entry));
+    }
+
+    return results.sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id));
+  }, [capsules, search, searchScope, sortedIssues]);
+
+  const openIssue = (slug) => {
+    window.location.hash = buildHash('issue', slug);
+  };
+
+  const openCapsule = (slug) => {
+    window.location.hash = buildHash('capsule', slug);
+  };
+
+  const currentIssue = route.kind === 'issue' ? issuesBySlug.get(route.slug) : null;
+  const currentCapsule = route.kind === 'capsule' ? capsulesBySlug.get(route.slug) : null;
+  const fallbackIssue = route.kind === 'home' ? feedIssues[0] : null;
+  const displayedIssue = currentIssue || fallbackIssue;
+  const activeKey = currentCapsule
+    ? `capsule:${currentCapsule.id}`
+    : displayedIssue
+      ? `issue:${displayedIssue.id}`
+      : '';
+
+  useEffect(() => {
+    const activeTitle = currentCapsule?.title || displayedIssue?.title || site?.title || 'GameLetter';
+    document.title = `${activeTitle} · ${site?.title || 'GameLetter'}`;
+  }, [currentCapsule, displayedIssue, site]);
 
   const handleShare = async () => {
+    const activeTitle = currentCapsule?.title || displayedIssue?.title || site?.title || 'GameLetter';
+    const activeSummary = currentCapsule?.summary || displayedIssue?.summary || site?.description || '';
     const shareData = {
-      title: selectedIssue?.title || site?.title || 'GameLetter',
-      text: selectedIssue?.summary || site?.description || '',
+      title: activeTitle,
+      text: activeSummary,
       url: window.location.href
     };
 
@@ -112,28 +189,46 @@ export default function App() {
     }
   };
 
+  const relatedIssues = currentCapsule
+    ? sortedIssues.filter((issue) => issue.blocks.some((block) => block.type === 'capsule-ref' && block.capsuleId === currentCapsule.id))
+    : [];
+
   return (
     <div className="app-shell">
       <Header
         site={site}
         searchValue={search}
+        searchScope={searchScope}
         onSearchChange={setSearch}
+        onSearchScopeChange={setSearchScope}
         onShare={handleShare}
       />
 
       <main className="layout-grid">
-        <IssueSidebar issues={filteredIssues} selectedId={selectedIssue?.id} onSelect={setSelectedId} />
+        <ContentSidebar
+          feedIssues={feedIssues}
+          searchResults={searchResults}
+          activeKey={activeKey}
+          onOpenIssue={openIssue}
+          onOpenCapsule={openCapsule}
+          isSearching={Boolean(search.trim())}
+          searchScope={searchScope}
+        />
 
         <section className="content-panel">
-          {loading ? <div className="state-card">正在加载简报内容…</div> : null}
+          {loading ? <div className="state-card">正在加载内容结构…</div> : null}
           {error ? <div className="state-card error">{error}</div> : null}
-          {!loading && !error && !selectedIssue ? <div className="state-card">没有匹配的简报结果。</div> : null}
 
-          {!loading && !error && selectedIssue ? (
+          {!loading && !error && !currentCapsule && !displayedIssue ? (
+            <div className="state-card">当前没有可展示的 Issue 或 Capsule。</div>
+          ) : null}
+
+          {!loading && !error && currentCapsule ? (
             <AnimatePresence mode="wait">
-              <motion.article key={selectedIssue.id} {...containerMotion} className="issue-detail">
+              <motion.article key={`capsule-${currentCapsule.id}`} {...containerMotion} className="issue-detail">
                 <div className="tag-row">
-                  {selectedIssue.tags?.map((tag) => (
+                  <span className="entry-kind-badge capsule">Capsule</span>
+                  {currentCapsule.tags?.map((tag) => (
                     <span key={tag} className="tag-chip">
                       {tag}
                     </span>
@@ -141,22 +236,58 @@ export default function App() {
                 </div>
 
                 <header className="issue-header">
-                  <p className="issue-date-large">{selectedIssue.date}</p>
-                  <h2>{selectedIssue.title}</h2>
-                  <p>{selectedIssue.summary}</p>
+                  <p className="issue-date-large">{currentCapsule.dateLabel}</p>
+                  <h2>{currentCapsule.title}</h2>
+                  <p>{currentCapsule.summary}</p>
                 </header>
 
-                <div className="news-flow">
-                  {selectedIssue.items.map((item, index) => (
-                    <NewsItem
-                      key={`${selectedIssue.id}-${index}`}
-                      item={item}
-                      onImageClick={(image) => setLightboxImage(image)}
-                    />
+                <CapsuleCard capsule={currentCapsule} onImageClick={setLightboxImage} />
+
+                {relatedIssues.length > 0 ? (
+                  <section className="related-issues-block">
+                    <div className="section-title big">收录于这些 Issue</div>
+                    <div className="related-issues-list">
+                      {relatedIssues.map((issue) => (
+                        <button key={issue.id} type="button" className="related-issue-button" onClick={() => openIssue(issue.slug)}>
+                          <span>{issue.title}</span>
+                          <small>{issue.dateLabel}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                <CommentSection issue={{ id: currentCapsule.id }} />
+              </motion.article>
+            </AnimatePresence>
+          ) : null}
+
+          {!loading && !error && !currentCapsule && displayedIssue ? (
+            <AnimatePresence mode="wait">
+              <motion.article key={`issue-${displayedIssue.id}`} {...containerMotion} className="issue-detail">
+                <div className="tag-row">
+                  <span className="entry-kind-badge issue">Issue</span>
+                  {displayedIssue.tags?.map((tag) => (
+                    <span key={tag} className="tag-chip">
+                      {tag}
+                    </span>
                   ))}
                 </div>
 
-                <CommentSection issue={selectedIssue} />
+                <header className="issue-header">
+                  <p className="issue-date-large">{displayedIssue.dateLabel}</p>
+                  <h2>{displayedIssue.title}</h2>
+                  <p>{displayedIssue.summary}</p>
+                </header>
+
+                <IssueComposer
+                  issue={displayedIssue}
+                  capsulesById={capsulesById}
+                  onOpenCapsule={openCapsule}
+                  onImageClick={setLightboxImage}
+                />
+
+                <CommentSection issue={{ id: displayedIssue.id }} />
               </motion.article>
             </AnimatePresence>
           ) : null}

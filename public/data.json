@@ -3,53 +3,161 @@
     "title": "GameLetter",
     "description": "每日游戏、设计与前端灵感简报。",
     "repoUrl": "https://github.com/onovich/GameLetter",
-    "rssPath": "/rss.xml"
+    "rssPath": "/rss.xml",
+    "baseUrl": "https://onovich.github.io/GameLetter/"
   },
+  "features": {
+    "rssForIssuesOnly": true,
+    "homepageShowsIssuesOnly": true,
+    "searchScopes": ["all", "issues", "capsules"]
+  },
+  "capsules": [
+    {
+      "id": "capsule-20260422-01",
+      "slug": "designing-better-game-huds",
+      "kind": "capsule",
+      "title": "Designing Better Game HUDs",
+      "summary": "一篇关于如何让 HUD 更少打扰玩家、更服务沉浸感的长文。",
+      "tags": ["Game Design", "UI"],
+      "publishedAt": "2026-04-22T10:30:00+08:00",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": false,
+        "feed": false,
+        "rss": false
+      },
+      "payload": {
+        "type": "link",
+        "url": "https://example.com/game-hud",
+        "image": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=1200",
+        "commentary": "真正高级的游戏界面，不是信息更满，而是让玩家几乎忘记界面的存在。"
+      }
+    },
+    {
+      "id": "capsule-20260422-02",
+      "slug": "cyberpunk-to-minimal-hud",
+      "kind": "capsule",
+      "title": "从赛博霓虹到极简 HUD",
+      "summary": "一张关于游戏视觉语言回摆的观察图像。",
+      "tags": ["Visual Trend", "Game UI"],
+      "publishedAt": "2026-04-22T10:35:00+08:00",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": false,
+        "feed": false,
+        "rss": false
+      },
+      "payload": {
+        "type": "image",
+        "url": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
+        "caption": "从赛博霓虹到极简 HUD，游戏视觉语言正在回摆。",
+        "commentary": "越成熟的界面，越像是把信息轻轻递给玩家，而不是扑面而来。"
+      }
+    },
+    {
+      "id": "capsule-20260421-01",
+      "slug": "shipping-static-sites-faster",
+      "kind": "capsule",
+      "title": "Shipping Static Sites Faster",
+      "summary": "围绕静态站生成、构建缓存、内容更新速度的一组经验总结。",
+      "tags": ["React", "Automation", "Publishing"],
+      "publishedAt": "2026-04-21T09:00:00+08:00",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": false,
+        "feed": false,
+        "rss": false
+      },
+      "payload": {
+        "type": "link",
+        "url": "https://example.com/static-publishing",
+        "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=1200",
+        "commentary": "对个人项目来说，持续可维护性比框架堆料更重要。"
+      }
+    },
+    {
+      "id": "capsule-20260421-02",
+      "slug": "maintainability-over-tooling",
+      "kind": "capsule",
+      "title": "Maintainability Over Tooling",
+      "summary": "一条关于内容站工程选择的独立观点。",
+      "tags": ["Opinion", "Frontend"],
+      "publishedAt": "2026-04-21T09:15:00+08:00",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": false,
+        "feed": false,
+        "rss": false
+      },
+      "payload": {
+        "type": "thought",
+        "content": "最好的架构，不是最能炫技的那套，而是一周后你还愿意继续维护它的那套。",
+        "author": "Editor"
+      }
+    }
+  ],
   "issues": [
     {
-      "id": "2026-04-22",
+      "id": "issue-20260422",
+      "slug": "game-ui-ai-indie-tooling",
+      "kind": "issue",
       "title": "Game UI、AI 玩法与独立开发工具链",
-      "date": "2026年4月22日",
-      "summary": "今天聚焦三件事：游戏界面审美迁移、AI 生成内容对玩法设计的影响，以及独立开发者如何优化自己的发布链路。",
+      "summary": "聚焦游戏界面审美迁移、AI 玩法设计与独立开发发布链路的三则内容。",
       "tags": ["Game Design", "AI", "Indie Dev"],
-      "items": [
+      "publishedAt": "2026-04-22T11:00:00+08:00",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": true,
+        "feed": true,
+        "rss": true
+      },
+      "blocks": [
         {
-          "type": "link",
-          "title": "Designing Better Game HUDs",
-          "description": "一篇关于如何让 HUD 更少打扰玩家、更服务沉浸感的长文。",
-          "url": "https://example.com/game-hud",
-          "image": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=1200"
+          "type": "capsule-ref",
+          "capsuleId": "capsule-20260422-01"
         },
         {
-          "type": "thought",
-          "content": "真正高级的游戏界面，不是信息更满，而是让玩家几乎忘记界面的存在。",
-          "author": "GameLetter"
+          "type": "note",
+          "content": "这类 HUD 文章最有价值的地方，不是技巧，而是提醒我们：界面首先应为沉浸服务。"
         },
         {
-          "type": "image",
-          "url": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
-          "caption": "从赛博霓虹到极简 HUD，游戏视觉语言正在回摆。"
+          "type": "capsule-ref",
+          "capsuleId": "capsule-20260422-02"
         }
       ]
     },
     {
-      "id": "2026-04-21",
+      "id": "issue-20260421",
+      "slug": "react-automation-and-publishing",
+      "kind": "issue",
       "title": "React 工具链轻量化与内容站自动部署",
-      "date": "2026年4月21日",
-      "summary": "围绕轻前端架构、静态内容站与持续部署效率，整理一组适合个人维护的实践。",
+      "summary": "围绕轻前端架构、持续发布效率与长期可维护性整理的一期内容。",
       "tags": ["React", "Automation", "Publishing"],
-      "items": [
+      "publishedAt": "2026-04-21T10:00:00+08:00",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": true,
+        "feed": true,
+        "rss": true
+      },
+      "blocks": [
         {
-          "type": "link",
-          "title": "Shipping Static Sites Faster",
-          "description": "围绕静态站生成、构建缓存、内容更新速度的一组经验总结。",
-          "url": "https://example.com/static-publishing",
-          "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=1200"
+          "type": "capsule-ref",
+          "capsuleId": "capsule-20260421-01"
         },
         {
-          "type": "thought",
-          "content": "对个人项目来说，持续可维护性比框架堆料更重要。最好的架构，是一周后你仍愿意继续更新它。",
-          "author": "Editor's Note"
+          "type": "note",
+          "content": "如果一个发布链路让你更新内容之前就先感到疲惫，那它几乎一定过重了。"
+        },
+        {
+          "type": "capsule-ref",
+          "capsuleId": "capsule-20260421-02"
         }
       ]
     }

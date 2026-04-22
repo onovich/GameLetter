@@ -7,17 +7,17 @@
     <language>zh-cn</language>
     <item>
       <title>Game UI、AI 玩法与独立开发工具链</title>
-      <description>今天聚焦三件事：游戏界面审美迁移、AI 生成内容对玩法设计的影响，以及独立开发者如何优化自己的发布链路。</description>
-      <link>https://onovich.github.io/GameLetter/#2026-04-22</link>
-      <guid>https://onovich.github.io/GameLetter/#2026-04-22</guid>
-      <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
+      <description>聚焦游戏界面审美迁移、AI 玩法设计与独立开发发布链路的三则内容。</description>
+      <link>https://onovich.github.io/GameLetter/#/issues/game-ui-ai-indie-tooling</link>
+      <guid>https://onovich.github.io/GameLetter/#/issues/game-ui-ai-indie-tooling</guid>
+      <pubDate>Wed, 22 Apr 2026 03:00:00 GMT</pubDate>
     </item>
     <item>
       <title>React 工具链轻量化与内容站自动部署</title>
-      <description>围绕轻前端架构、静态内容站与持续部署效率，整理一组适合个人维护的实践。</description>
-      <link>https://onovich.github.io/GameLetter/#2026-04-21</link>
-      <guid>https://onovich.github.io/GameLetter/#2026-04-21</guid>
-      <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
+      <description>围绕轻前端架构、持续发布效率与长期可维护性整理的一期内容。</description>
+      <link>https://onovich.github.io/GameLetter/#/issues/react-automation-and-publishing</link>
+      <guid>https://onovich.github.io/GameLetter/#/issues/react-automation-and-publishing</guid>
+      <pubDate>Tue, 21 Apr 2026 02:00:00 GMT</pubDate>
     </item>
   </channel>
 </rss>
