@@ -915,7 +915,14 @@ function requestJson(url, options = {}) {
 }
 
 function normalizeInboxFile(file) {
-  const { frontmatter, body } = parseFrontmatter(file.content || '');
+  const parsed = file.content
+    ? parseFrontmatter(file.content)
+    : {
+        frontmatter: { ...(file.frontmatter || {}) },
+        body: String(file.body || '').trim()
+      };
+  const frontmatter = parsed.frontmatter || {};
+  const body = parsed.body || '';
   const parsedTags = parseTagList(frontmatter.tags || '');
   return {
     ...file,
