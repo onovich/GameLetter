@@ -60,6 +60,8 @@ npm run cms
 - 生成发布 request
 - 生成预览 request
 - 归档草稿
+- 选择现有 Issue / Capsule 作为目标对象
+- 将现有 Capsule 一键插入到 Issue 操作单中
 - 自动输出内部 prompt 到 `workbench/pending/latest-prompt.txt`
 - 自动输出最新 request 到 `workbench/pending/latest-request.json`
 

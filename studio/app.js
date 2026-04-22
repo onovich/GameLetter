@@ -1,7 +1,8 @@
 const state = {
   files: [],
   selectedFileName: '',
-  dirty: false
+  dirty: false,
+  dataSource: { capsules: [], issues: [], features: {} }
 };
 
 const elements = {
@@ -12,9 +13,14 @@ const elements = {
   promptOutput: document.getElementById('promptOutput'),
   dataOverview: document.getElementById('dataOverview'),
   requestMeta: document.getElementById('requestMeta'),
+  issueLibrary: document.getElementById('issueLibrary'),
+  capsuleLibrary: document.getElementById('capsuleLibrary'),
   toast: document.getElementById('toast'),
   refreshButton: document.getElementById('refreshButton'),
   newDraftButton: document.getElementById('newDraftButton'),
+  newCapsuleDraftButton: document.getElementById('newCapsuleDraftButton'),
+  newIssueDraftButton: document.getElementById('newIssueDraftButton'),
+  normalizeFrontmatterButton: document.getElementById('normalizeFrontmatterButton'),
   saveButton: document.getElementById('saveButton'),
   deleteButton: document.getElementById('deleteButton'),
   preparePublishButton: document.getElementById('preparePublishButton'),
@@ -34,6 +40,58 @@ function showToast(message, type = 'info') {
 
 function badgeClass(prefix, value) {
   return `${prefix}-${String(value || 'auto').toLowerCase()}`;
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function parseFrontmatter(content) {
+  const normalized = (content || '').replace(/^\uFEFF/, '');
+  if (!normalized.startsWith('---\n')) {
+    return { frontmatter: {}, body: normalized.trim() };
+  }
+
+  const endIndex = normalized.indexOf('\n---\n', 4);
+  if (endIndex === -1) {
+    return { frontmatter: {}, body: normalized.trim() };
+  }
+
+  const header = normalized.slice(4, endIndex).trim();
+  const body = normalized.slice(endIndex + 5).trim();
+  const frontmatter = {};
+
+  header.split(/\r?\n/).forEach((line) => {
+    const index = line.indexOf(':');
+    if (index === -1) {
+      return;
+    }
+    const key = line.slice(0, index).trim();
+    const value = line.slice(index + 1).trim();
+    if (key) {
+      frontmatter[key] = value;
+    }
+  });
+
+  return { frontmatter, body };
+}
+
+function serializeDraft(frontmatter, body) {
+  const header = Object.entries(frontmatter)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join('\n');
+  return `---\n${header}\n---\n\n${(body || '').trim()}`.trim();
+}
+
+function mutateDraft(mutator) {
+  const { frontmatter, body } = parseFrontmatter(elements.contentInput.value);
+  const next = mutator({ frontmatter: { ...frontmatter }, body });
+  elements.contentInput.value = serializeDraft(next.frontmatter, next.body);
 }
 
 function renderDraftList() {
@@ -84,6 +142,106 @@ function renderDataOverview(data) {
   `;
 }
 
+function renderLibraries() {
+  const issues = state.dataSource.issues || [];
+  const capsules = state.dataSource.capsules || [];
+
+  elements.issueLibrary.innerHTML = issues.length
+    ? issues
+        .map((issue) => `
+          <article class="library-item">
+            <div>
+              <small>${escapeHtml(issue.id)}</small>
+              <h4>${escapeHtml(issue.title)}</h4>
+              <p>${escapeHtml(issue.summary || '')}</p>
+            </div>
+            <div class="library-item-actions">
+              <button type="button" class="ghost-button" data-set-target-kind="issue" data-set-target-id="${escapeHtml(issue.id)}">设为目标</button>
+              <button type="button" class="secondary-button" data-set-edit-target-kind="issue" data-set-edit-target-id="${escapeHtml(issue.id)}">设为编辑</button>
+            </div>
+          </article>
+        `)
+        .join('')
+    : '<p class="hint">当前还没有 Issue。</p>';
+
+  elements.capsuleLibrary.innerHTML = capsules.length
+    ? capsules
+        .map((capsule) => `
+          <article class="library-item">
+            <div>
+              <small>${escapeHtml(capsule.id)}</small>
+              <h4>${escapeHtml(capsule.title)}</h4>
+              <p>${escapeHtml(capsule.summary || '')}</p>
+            </div>
+            <div class="library-item-actions">
+              <button type="button" class="ghost-button" data-set-target-kind="capsule" data-set-target-id="${escapeHtml(capsule.id)}">设为目标</button>
+              <button type="button" class="secondary-button" data-insert-capsule-id="${escapeHtml(capsule.id)}" data-insert-capsule-title="${escapeHtml(capsule.title)}">插入引用</button>
+            </div>
+          </article>
+        `)
+        .join('')
+    : '<p class="hint">当前还没有 Capsule。</p>';
+
+  elements.issueLibrary.querySelectorAll('[data-set-target-kind], [data-set-edit-target-kind]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const kind = button.dataset.setTargetKind || button.dataset.setEditTargetKind;
+      const id = button.dataset.setTargetId || button.dataset.setEditTargetId;
+      const action = button.dataset.setEditTargetKind ? 'update' : undefined;
+      applyTarget(kind, id, action);
+    });
+  });
+
+  elements.capsuleLibrary.querySelectorAll('[data-set-target-kind]').forEach((button) => {
+    button.addEventListener('click', () => applyTarget(button.dataset.setTargetKind, button.dataset.setTargetId));
+  });
+
+  elements.capsuleLibrary.querySelectorAll('[data-insert-capsule-id]').forEach((button) => {
+    button.addEventListener('click', () => insertCapsuleReference(button.dataset.insertCapsuleId, button.dataset.insertCapsuleTitle));
+  });
+}
+
+function applyTarget(kind, targetId, forcedAction) {
+  mutateDraft(({ frontmatter, body }) => {
+    frontmatter.kind = kind;
+    frontmatter.target = targetId;
+    if (forcedAction) {
+      frontmatter.action = forcedAction;
+    }
+    return { frontmatter, body };
+  });
+  showToast(`已将 ${targetId} 设为目标`);
+}
+
+function insertCapsuleReference(capsuleId, capsuleTitle) {
+  mutateDraft(({ frontmatter, body }) => {
+    if (!frontmatter.kind || frontmatter.kind === 'auto') {
+      frontmatter.kind = 'issue';
+    }
+
+    const snippet = [
+      '',
+      '[引用 Capsule]',
+      `capsuleId: ${capsuleId}`,
+      `title: ${capsuleTitle}`,
+      'note: 在这里补一句你希望插在这个 Capsule 后面的短评。'
+    ].join('\n');
+
+    const nextBody = `${body.trim()}\n${snippet}`.trim();
+    return { frontmatter, body: nextBody };
+  });
+  showToast(`已插入 Capsule 引用：${capsuleTitle}`);
+}
+
+function normalizeFrontmatter(kind = 'auto') {
+  mutateDraft(({ frontmatter, body }) => {
+    frontmatter.action = frontmatter.action || 'auto';
+    frontmatter.kind = kind === 'auto' ? frontmatter.kind || 'auto' : kind;
+    frontmatter.target = frontmatter.target || 'auto';
+    return { frontmatter, body };
+  });
+  showToast('已规范化操作单头部');
+}
+
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -123,7 +281,7 @@ async function loadInbox() {
 function clearEditor() {
   state.selectedFileName = '';
   elements.fileNameInput.value = '';
-  elements.contentInput.value = '';
+  elements.contentInput.value = '---\naction: auto\nkind: auto\ntarget: auto\n---\n';
   elements.promptOutput.value = '';
   elements.requestMeta.textContent = '尚未生成 request';
   renderInference(null);
@@ -225,10 +383,24 @@ function createNewDraft() {
   renderDraftList();
 }
 
+function createTypedDraft(kind) {
+  createNewDraft();
+  normalizeFrontmatter(kind);
+  if (kind === 'capsule') {
+    elements.contentInput.value = `---\naction: create\nkind: capsule\ntarget: auto\n---\n\n我想发布一个 capsule。\n\n标题候选：\n内容来源：\n我的短评：`;
+  }
+  if (kind === 'issue') {
+    elements.contentInput.value = `---\naction: create\nkind: issue\ntarget: auto\n---\n\n我想发布一期 issue。\n\n这期包含以下内容点：\n1. \n2. \n3. \n\n希望插入的 note：`;
+  }
+  showToast(`已创建 ${kind} 草稿模板`);
+}
+
 async function bootstrap() {
   try {
     const data = await requestJson('/api/data-source');
+    state.dataSource = data;
     renderDataOverview(data);
+    renderLibraries();
     await loadInbox();
   } catch (error) {
     showToast(error.message, 'error');
@@ -237,6 +409,9 @@ async function bootstrap() {
 
 elements.refreshButton.addEventListener('click', () => bootstrap().catch((error) => showToast(error.message, 'error')));
 elements.newDraftButton.addEventListener('click', createNewDraft);
+elements.newCapsuleDraftButton.addEventListener('click', () => createTypedDraft('capsule'));
+elements.newIssueDraftButton.addEventListener('click', () => createTypedDraft('issue'));
+elements.normalizeFrontmatterButton.addEventListener('click', () => normalizeFrontmatter());
 elements.saveButton.addEventListener('click', () => saveCurrent().catch((error) => showToast(error.message, 'error')));
 elements.deleteButton.addEventListener('click', () => deleteCurrent().catch((error) => showToast(error.message, 'error')));
 elements.archiveButton.addEventListener('click', () => archiveCurrent().catch((error) => showToast(error.message, 'error')));

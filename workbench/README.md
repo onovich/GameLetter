@@ -152,6 +152,8 @@ npm run cms
 - 一键生成发布 request
 - 一键生成预览 request
 - 一键归档到 `workbench/archive/`
+- 可视化选择现有 Issue / Capsule 作为目标对象
+- 一键把现有 Capsule 引用插入到 Issue 草稿中
 - 自动写出：
 	- `workbench/pending/latest-request.json`
 	- `workbench/pending/latest-prompt.txt`

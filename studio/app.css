@@ -69,6 +69,7 @@ textarea { min-height: 180px; padding: 14px; resize: vertical; }
 .toolbar { display: flex; gap: 10px; }
 .toolbar.stacked { flex-direction: column; }
 .toolbar.compact { flex-wrap: wrap; }
+.toolbar.wrap { flex-wrap: wrap; }
 button {
   min-height: 42px;
   padding: 0 16px;
@@ -143,6 +144,10 @@ button:hover { transform: translateY(-1px); }
 .field span { font-weight: 700; }
 #contentInput { flex: 1; min-height: 420px; }
 
+.helper-card {
+  margin-top: auto;
+}
+
 .card {
   display: grid;
   gap: 12px;
@@ -164,6 +169,57 @@ button:hover { transform: translateY(-1px); }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.library-list {
+  display: grid;
+  gap: 10px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.library-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.library-item h4,
+.library-item p,
+.library-item small {
+  margin: 0;
+}
+
+.library-item p,
+.library-item small {
+  color: var(--muted);
+}
+
+.library-item h4 {
+  font-size: 15px;
+}
+
+.library-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.library-item-actions button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
 }
 #promptOutput {
   min-height: 200px;

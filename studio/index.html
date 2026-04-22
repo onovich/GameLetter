@@ -45,6 +45,16 @@
           <span>操作内容</span>
           <textarea id="contentInput" placeholder="例如：把下面 3 个内容点整理成一期 issue，并在第二个 capsule 后加一句 note……"></textarea>
         </label>
+
+        <div class="card helper-card">
+          <h3>快捷辅助</h3>
+          <div class="toolbar compact wrap">
+            <button id="newCapsuleDraftButton" class="secondary-button">新建 Capsule 草稿</button>
+            <button id="newIssueDraftButton" class="secondary-button">新建 Issue 草稿</button>
+            <button id="normalizeFrontmatterButton" class="ghost-button">规范化头部</button>
+          </div>
+          <p class="hint">这些按钮会帮你写入更稳定的 `action / kind / target` 头部，减少 AI 判断歧义。</p>
+        </div>
       </main>
 
       <section class="panel inspector-panel">
@@ -75,6 +85,22 @@
         <div class="card">
           <h3>数据源概览</h3>
           <div id="dataOverview" class="stats-grid"></div>
+        </div>
+
+        <div class="card data-library-card">
+          <div class="section-head">
+            <h3>Issue 选择器</h3>
+            <span class="hint">用于编辑 / 删除目标</span>
+          </div>
+          <div id="issueLibrary" class="library-list"></div>
+        </div>
+
+        <div class="card data-library-card">
+          <div class="section-head">
+            <h3>Capsule 选择器</h3>
+            <span class="hint">可设为目标，也可插入到 Issue 草稿中</span>
+          </div>
+          <div id="capsuleLibrary" class="library-list"></div>
         </div>
 
         <div class="card">
