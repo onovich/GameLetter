@@ -59,9 +59,12 @@ npm run cms
 - inbox 操作单列表与编辑
 - 生成发布 request
 - 生成预览 request
+- 发布前校验 action / kind / target / capsule 引用合法性
+- 查看最近生成的 request 历史
 - 归档草稿
 - 选择现有 Issue / Capsule 作为目标对象
 - 将现有 Capsule 一键插入到 Issue 操作单中
+- 直接为现有 Issue / Capsule 生成删除草稿
 - 自动输出内部 prompt 到 `workbench/pending/latest-prompt.txt`
 - 自动输出最新 request 到 `workbench/pending/latest-request.json`
 

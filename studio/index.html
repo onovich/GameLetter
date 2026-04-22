@@ -68,6 +68,7 @@
         <div class="toolbar stacked">
           <button id="preparePublishButton">发布</button>
           <button id="preparePreviewButton" class="secondary-button">预览</button>
+          <button id="validateButton" class="ghost-button">校验</button>
           <button id="archiveButton" class="ghost-button">归档</button>
         </div>
 
@@ -85,6 +86,13 @@
         <div class="card">
           <h3>数据源概览</h3>
           <div id="dataOverview" class="stats-grid"></div>
+        </div>
+
+        <div class="card">
+          <h3>发布前校验</h3>
+          <div id="validationPanel" class="validation-panel">
+            <p class="hint">点击“校验”后查看当前操作单的风险与提示。</p>
+          </div>
         </div>
 
         <div class="card data-library-card">
@@ -106,6 +114,13 @@
         <div class="card">
           <h3>最新 request</h3>
           <pre id="requestMeta" class="request-meta">尚未生成 request</pre>
+        </div>
+
+        <div class="card">
+          <h3>request 历史</h3>
+          <div id="pendingList" class="pending-list">
+            <p class="hint">还没有 request 记录。</p>
+          </div>
         </div>
       </section>
     </div>

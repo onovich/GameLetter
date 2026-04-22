@@ -231,6 +231,48 @@ button:hover { transform: translateY(-1px); }
   font-size: 13px;
   line-height: 1.6;
 }
+
+.validation-panel,
+.pending-list {
+  display: grid;
+  gap: 10px;
+}
+
+.validation-item,
+.pending-item {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.validation-item strong,
+.pending-item strong,
+.pending-item p,
+.pending-item small {
+  display: block;
+  margin: 0;
+}
+
+.validation-item.error {
+  border-color: rgba(220, 38, 38, 0.24);
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.validation-item.warning {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.validation-item.info {
+  border-color: rgba(14, 165, 233, 0.24);
+  background: rgba(14, 165, 233, 0.06);
+}
+
+.pending-item p,
+.pending-item small {
+  color: var(--muted);
+}
 .toast {
   position: fixed;
   right: 20px;

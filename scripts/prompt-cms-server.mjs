@@ -290,6 +290,110 @@ async function readDataSource() {
   return JSON.parse(raw);
 }
 
+async function readPendingRequests() {
+  await ensureDirectories();
+  const entries = await fs.readdir(pendingDir, { withFileTypes: true });
+  const files = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.json') && entry.name !== 'latest-request.json')
+      .map(async (entry) => {
+        const filePath = path.join(pendingDir, entry.name);
+        const [content, stat] = await Promise.all([fs.readFile(filePath, 'utf8'), fs.stat(filePath)]);
+        const payload = JSON.parse(content);
+        return {
+          fileName: entry.name,
+          createdAt: payload.createdAt || stat.mtime.toISOString(),
+          mode: payload.mode,
+          action: payload.action,
+          kind: payload.kind,
+          title: payload.title,
+          target: payload.target
+        };
+      })
+  );
+
+  return files.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+}
+
+function collectReferencedCapsuleIds(body) {
+  return [...body.matchAll(/capsuleId:\s*([\w-]+)/gi)].map((match) => match[1]);
+}
+
+async function validateOperation(fileName) {
+  const operation = await getInboxFile(fileName);
+  const data = await readDataSource();
+  const issues = data.issues || [];
+  const capsules = data.capsules || [];
+  const issueIds = new Set(issues.map((item) => item.id));
+  const capsuleIds = new Set(capsules.map((item) => item.id));
+  const errors = [];
+  const warnings = [];
+  const infos = [];
+
+  if (!operation.body.trim()) {
+    warnings.push('操作单正文为空，AI 可能无法正确理解你的意图。');
+  }
+
+  if (operation.kind === 'auto') {
+    warnings.push('当前 kind 仍为 auto，建议使用右侧选择器或模板减少歧义。');
+  }
+
+  if (['update', 'delete'].includes(operation.action) && operation.target === 'auto') {
+    errors.push('update / delete 操作必须指定明确 target。');
+  }
+
+  if (operation.target !== 'auto') {
+    const targetKind = operation.target.startsWith('issue-') ? 'issue' : operation.target.startsWith('capsule-') ? 'capsule' : operation.kind;
+    if (targetKind === 'issue' && !issueIds.has(operation.target)) {
+      errors.push(`目标 Issue 不存在：${operation.target}`);
+    }
+    if (targetKind === 'capsule' && !capsuleIds.has(operation.target)) {
+      errors.push(`目标 Capsule 不存在：${operation.target}`);
+    }
+  }
+
+  if (operation.kind === 'issue' || /capsuleId:/i.test(operation.body)) {
+    const referencedIds = collectReferencedCapsuleIds(operation.body);
+    referencedIds.forEach((capsuleId) => {
+      if (!capsuleIds.has(capsuleId)) {
+        errors.push(`Issue 草稿引用了不存在的 Capsule：${capsuleId}`);
+      }
+    });
+
+    if (referencedIds.length > 0) {
+      infos.push(`检测到 ${referencedIds.length} 个 Capsule 引用。`);
+    }
+  }
+
+  if (operation.action === 'delete' && operation.target.startsWith('capsule-')) {
+    const referencedBy = issues.filter((issue) => issue.blocks?.some((block) => block.type === 'capsule-ref' && block.capsuleId === operation.target));
+    if (referencedBy.length > 0) {
+      warnings.push(`该 Capsule 仍被 ${referencedBy.length} 个 Issue 引用，删除前需同步处理引用关系。`);
+    }
+  }
+
+  if (operation.action === 'create' && operation.kind === 'capsule') {
+    infos.push('Capsule 默认可搜索、可直链，但不会进入首页流与 RSS。');
+  }
+
+  if (operation.action === 'create' && operation.kind === 'issue') {
+    infos.push('Issue 默认进入首页流与 RSS；请确认 blocks 编排顺序。');
+  }
+
+  return {
+    fileName: operation.fileName,
+    action: operation.action,
+    kind: operation.kind,
+    target: operation.target,
+    title: operation.title,
+    summary: operation.summary,
+    errors,
+    warnings,
+    infos,
+    valid: errors.length === 0
+  };
+}
+
 async function serveStatic(request, response, url) {
   const requestedPath = url.pathname === '/' ? '/index.html' : url.pathname;
   const normalizedPath = path.normalize(requestedPath).replace(/^([.][.][/\\])+/, '');
@@ -360,9 +464,22 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/validate') {
+      const body = await readBody(request);
+      const result = await validateOperation(body.fileName);
+      sendJson(response, 200, result);
+      return;
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/data-source') {
       const data = await readDataSource();
       sendJson(response, 200, data);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/pending') {
+      const requests = await readPendingRequests();
+      sendJson(response, 200, { requests });
       return;
     }
 

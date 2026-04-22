@@ -151,9 +151,12 @@ npm run cms
 - 新建 / 编辑 / 删除操作单
 - 一键生成发布 request
 - 一键生成预览 request
+- 发布前校验目标对象与 Capsule 引用是否合法
+- 查看最近生成的 request 历史
 - 一键归档到 `workbench/archive/`
 - 可视化选择现有 Issue / Capsule 作为目标对象
 - 一键把现有 Capsule 引用插入到 Issue 草稿中
+- 直接为现有 Issue / Capsule 生成删除草稿
 - 自动写出：
 	- `workbench/pending/latest-request.json`
 	- `workbench/pending/latest-prompt.txt`

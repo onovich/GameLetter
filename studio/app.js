@@ -12,6 +12,8 @@ const elements = {
   inferencePanel: document.getElementById('inferencePanel'),
   promptOutput: document.getElementById('promptOutput'),
   dataOverview: document.getElementById('dataOverview'),
+  validationPanel: document.getElementById('validationPanel'),
+  pendingList: document.getElementById('pendingList'),
   requestMeta: document.getElementById('requestMeta'),
   issueLibrary: document.getElementById('issueLibrary'),
   capsuleLibrary: document.getElementById('capsuleLibrary'),
@@ -25,6 +27,7 @@ const elements = {
   deleteButton: document.getElementById('deleteButton'),
   preparePublishButton: document.getElementById('preparePublishButton'),
   preparePreviewButton: document.getElementById('preparePreviewButton'),
+  validateButton: document.getElementById('validateButton'),
   archiveButton: document.getElementById('archiveButton')
 };
 
@@ -142,6 +145,46 @@ function renderDataOverview(data) {
   `;
 }
 
+function renderValidation(result) {
+  const entries = [
+    ...(result?.errors || []).map((message) => ({ type: 'error', message })),
+    ...(result?.warnings || []).map((message) => ({ type: 'warning', message })),
+    ...(result?.infos || []).map((message) => ({ type: 'info', message }))
+  ];
+
+  if (entries.length === 0) {
+    elements.validationPanel.innerHTML = '<div class="validation-item info"><strong>通过</strong><span>当前没有发现明显问题。</span></div>';
+    return;
+  }
+
+  elements.validationPanel.innerHTML = entries
+    .map((entry) => `
+      <div class="validation-item ${entry.type}">
+        <strong>${entry.type.toUpperCase()}</strong>
+        <span>${escapeHtml(entry.message)}</span>
+      </div>
+    `)
+    .join('');
+}
+
+function renderPendingRequests(requests) {
+  if (!requests?.length) {
+    elements.pendingList.innerHTML = '<p class="hint">还没有 request 记录。</p>';
+    return;
+  }
+
+  elements.pendingList.innerHTML = requests
+    .slice(0, 8)
+    .map((item) => `
+      <div class="pending-item">
+        <strong>${escapeHtml(item.title || item.fileName)}</strong>
+        <p>${escapeHtml(item.mode)} / ${escapeHtml(item.action)} / ${escapeHtml(item.kind)}</p>
+        <small>${new Date(item.createdAt).toLocaleString('zh-CN')}</small>
+      </div>
+    `)
+    .join('');
+}
+
 function renderLibraries() {
   const issues = state.dataSource.issues || [];
   const capsules = state.dataSource.capsules || [];
@@ -158,6 +201,7 @@ function renderLibraries() {
             <div class="library-item-actions">
               <button type="button" class="ghost-button" data-set-target-kind="issue" data-set-target-id="${escapeHtml(issue.id)}">设为目标</button>
               <button type="button" class="secondary-button" data-set-edit-target-kind="issue" data-set-edit-target-id="${escapeHtml(issue.id)}">设为编辑</button>
+              <button type="button" class="danger-button" data-set-delete-kind="issue" data-set-delete-id="${escapeHtml(issue.id)}">删除草稿</button>
             </div>
           </article>
         `)
@@ -176,6 +220,7 @@ function renderLibraries() {
             <div class="library-item-actions">
               <button type="button" class="ghost-button" data-set-target-kind="capsule" data-set-target-id="${escapeHtml(capsule.id)}">设为目标</button>
               <button type="button" class="secondary-button" data-insert-capsule-id="${escapeHtml(capsule.id)}" data-insert-capsule-title="${escapeHtml(capsule.title)}">插入引用</button>
+              <button type="button" class="danger-button" data-set-delete-kind="capsule" data-set-delete-id="${escapeHtml(capsule.id)}">删除草稿</button>
             </div>
           </article>
         `)
@@ -191,13 +236,41 @@ function renderLibraries() {
     });
   });
 
+  elements.issueLibrary.querySelectorAll('[data-set-delete-kind]').forEach((button) => {
+    button.addEventListener('click', () => createActionDraft('delete', button.dataset.setDeleteKind, button.dataset.setDeleteId));
+  });
+
   elements.capsuleLibrary.querySelectorAll('[data-set-target-kind]').forEach((button) => {
     button.addEventListener('click', () => applyTarget(button.dataset.setTargetKind, button.dataset.setTargetId));
+  });
+
+  elements.capsuleLibrary.querySelectorAll('[data-set-delete-kind]').forEach((button) => {
+    button.addEventListener('click', () => createActionDraft('delete', button.dataset.setDeleteKind, button.dataset.setDeleteId));
   });
 
   elements.capsuleLibrary.querySelectorAll('[data-insert-capsule-id]').forEach((button) => {
     button.addEventListener('click', () => insertCapsuleReference(button.dataset.insertCapsuleId, button.dataset.insertCapsuleTitle));
   });
+}
+
+function createActionDraft(action, kind, targetId) {
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
+  const title = action === 'delete' ? `删除 ${kind}` : `更新 ${kind}`;
+  state.selectedFileName = '';
+  elements.fileNameInput.value = `${action}-${kind}-${stamp}.md`;
+  elements.contentInput.value = `---\naction: ${action}\nkind: ${kind}\ntarget: ${targetId}\n---\n\n${title}：${targetId}\n\n请在这里补充你的自然语言说明。`;
+  elements.promptOutput.value = '';
+  elements.requestMeta.textContent = '保存后即可生成 request';
+  renderInference({
+    fileName: elements.fileNameInput.value,
+    action,
+    kind,
+    target: targetId,
+    title,
+    summary: `准备对 ${targetId} 执行 ${action}`
+  });
+  renderValidation({ errors: [], warnings: [], infos: [`已为 ${targetId} 创建 ${action} 草稿。`] });
+  renderDraftList();
 }
 
 function applyTarget(kind, targetId, forcedAction) {
@@ -344,6 +417,14 @@ async function archiveCurrent() {
 
 async function prepare(mode) {
   await saveCurrent();
+  const validation = await requestJson('/api/validate', {
+    method: 'POST',
+    body: JSON.stringify({ fileName: state.selectedFileName })
+  });
+  renderValidation(validation);
+  if (!validation.valid) {
+    throw new Error('当前操作单存在校验错误，请先修复再生成 request');
+  }
   const result = await requestJson('/api/prepare', {
     method: 'POST',
     body: JSON.stringify({ fileName: state.selectedFileName, mode })
@@ -362,7 +443,23 @@ async function prepare(mode) {
     '3. 先确认 tags，再预览或正式发布'
   ].join('\n');
   renderInference(result);
+  await loadPendingRequests();
   showToast(mode === 'preview' ? '已生成预览 request' : '已生成发布 request');
+}
+
+async function validateCurrent() {
+  await saveCurrent();
+  const result = await requestJson('/api/validate', {
+    method: 'POST',
+    body: JSON.stringify({ fileName: state.selectedFileName })
+  });
+  renderValidation(result);
+  showToast(result.valid ? '校验通过' : '发现需要修正的问题', result.valid ? 'info' : 'error');
+}
+
+async function loadPendingRequests() {
+  const { requests } = await requestJson('/api/pending');
+  renderPendingRequests(requests);
 }
 
 function createNewDraft() {
@@ -401,6 +498,7 @@ async function bootstrap() {
     state.dataSource = data;
     renderDataOverview(data);
     renderLibraries();
+    await loadPendingRequests();
     await loadInbox();
   } catch (error) {
     showToast(error.message, 'error');
@@ -415,6 +513,7 @@ elements.normalizeFrontmatterButton.addEventListener('click', () => normalizeFro
 elements.saveButton.addEventListener('click', () => saveCurrent().catch((error) => showToast(error.message, 'error')));
 elements.deleteButton.addEventListener('click', () => deleteCurrent().catch((error) => showToast(error.message, 'error')));
 elements.archiveButton.addEventListener('click', () => archiveCurrent().catch((error) => showToast(error.message, 'error')));
+elements.validateButton.addEventListener('click', () => validateCurrent().catch((error) => showToast(error.message, 'error')));
 elements.preparePublishButton.addEventListener('click', () => prepare('publish').catch((error) => showToast(error.message, 'error')));
 elements.preparePreviewButton.addEventListener('click', () => prepare('preview').catch((error) => showToast(error.message, 'error')));
 
