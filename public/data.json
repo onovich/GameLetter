@@ -1,0 +1,57 @@
+{
+  "site": {
+    "title": "GameLetter",
+    "description": "每日游戏、设计与前端灵感简报。",
+    "repoUrl": "https://github.com/onovich/GameLetter",
+    "rssPath": "/rss.xml"
+  },
+  "issues": [
+    {
+      "id": "2026-04-22",
+      "title": "Game UI、AI 玩法与独立开发工具链",
+      "date": "2026年4月22日",
+      "summary": "今天聚焦三件事：游戏界面审美迁移、AI 生成内容对玩法设计的影响，以及独立开发者如何优化自己的发布链路。",
+      "tags": ["Game Design", "AI", "Indie Dev"],
+      "items": [
+        {
+          "type": "link",
+          "title": "Designing Better Game HUDs",
+          "description": "一篇关于如何让 HUD 更少打扰玩家、更服务沉浸感的长文。",
+          "url": "https://example.com/game-hud",
+          "image": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=1200"
+        },
+        {
+          "type": "thought",
+          "content": "真正高级的游戏界面，不是信息更满，而是让玩家几乎忘记界面的存在。",
+          "author": "GameLetter"
+        },
+        {
+          "type": "image",
+          "url": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
+          "caption": "从赛博霓虹到极简 HUD，游戏视觉语言正在回摆。"
+        }
+      ]
+    },
+    {
+      "id": "2026-04-21",
+      "title": "React 工具链轻量化与内容站自动部署",
+      "date": "2026年4月21日",
+      "summary": "围绕轻前端架构、静态内容站与持续部署效率，整理一组适合个人维护的实践。",
+      "tags": ["React", "Automation", "Publishing"],
+      "items": [
+        {
+          "type": "link",
+          "title": "Shipping Static Sites Faster",
+          "description": "围绕静态站生成、构建缓存、内容更新速度的一组经验总结。",
+          "url": "https://example.com/static-publishing",
+          "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=1200"
+        },
+        {
+          "type": "thought",
+          "content": "对个人项目来说，持续可维护性比框架堆料更重要。最好的架构，是一周后你仍愿意继续更新它。",
+          "author": "Editor's Note"
+        }
+      ]
+    }
+  ]
+}
