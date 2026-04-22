@@ -7,6 +7,25 @@
 - `workbench/inbox/`：待发布草稿
 - `workbench/archive/`：已发布归档
 
+## 核心交互原则
+
+这个工作台的目标不是让你手动输入复杂 prompt，而是让你只输入极短命令，例如：`发布`。
+
+也就是说：
+
+- `workbench/inbox/` 存放的是待执行的操作单
+- 本地 CMS 负责读取这些操作单
+- 本地 CMS 会把自然语言内容整理成内置 prompt
+- Copilot 负责理解、结构化、生成 tags 候选、预览和正式发布
+
+换句话说：
+
+- 新增，是一种 prompt
+- 编辑，是一种 prompt
+- 删除，也是一种 prompt
+
+本地 CMS 的本质是 **prompt 预处理器**。
+
 ## 日常发布流程
 
 ### 1. 写草稿
@@ -21,15 +40,16 @@
 - 标题默认从文件中的第一行标题或最显眼的一句提取
 - 日期、时间以正式发布时刻为准
 
-### 2. 让 Copilot 读取草稿
+### 2. 触发“发布”
 
-在 VS Code 里对 Copilot 说：
+理想交互不再是你手写长 prompt，而是你只发出一个短命令：
 
-- `读取 workbench/inbox 里的最新草稿，提取 newsletter 候选内容并给我 tag 清单确认`
+- `发布`
 
-Copilot 处理时会做这些事：
+然后由本地 CMS / 内置流程自动做这些事：
 
-- 读取草稿
+- 读取 `workbench/inbox/` 中最新或被选中的操作单
+- 自动判断这是新增、编辑还是删除
 - 自动判断你这次更适合发布 `Capsule` 还是 `Issue`
 - 自动提取标题
 - 自动生成摘要
@@ -37,11 +57,14 @@ Copilot 处理时会做这些事：
 - 自动识别内容项并转换成 `capsule-ref` / `note` 或 `payload`
 - 自动给出一份 tags 候选清单，等待你确认
 
+如果是编辑或删除，也会先返回操作摘要，避免误操作。
+
 ### 3. 预览
 
-你确认 tags 后，再对 Copilot 说：
+你确认 tags 后，再进入预览：
 
-- `按确认后的 tags 生成预览并启动本地预览`
+- 由本地 CMS 自动把确认结果交给 Copilot
+- Copilot 生成结构化候选并写入预览态数据
 
 推荐预览方式：
 
@@ -51,13 +74,11 @@ Copilot 处理时会做这些事：
 
 ### 4. 正式发布
 
-预览确认后，再对 Copilot 说：
-
-- `正式发布这篇 newsletter，并归档工作台草稿`
+预览确认后，再执行正式发布。
 
 正式发布动作包括：
 
-- 将内容写入 `public/data.json`
+- 将 create / update / delete 操作落到 `public/data.json`
 - 重新生成 RSS
 - 提交并推送到远端
 - 将原始草稿移动到 `workbench/archive/`
@@ -90,16 +111,26 @@ Copilot 处理时会做这些事：
 - 若干图片链接或图片说明
 - 你自己的短评
 
-## 示例提示词
+## 示例操作意图
 
-### 从草稿生成候选内容
+下面这些文件内容，本质上都可以是 `inbox` 中的操作单。
 
-- `读取 workbench/inbox/today.md，整理成 newsletter 候选内容，先给我 title、summary、tags、items 草案，不要发布`
+### 新增 Capsule
 
-### 确认标签后预览
+- `我想发一个 capsule，内容是这篇关于游戏 HUD 的文章，附一句短评……`
 
-- `使用这些 tags：[Game Design, AI, Tools]，把草稿转成页面预览，先不要推送远端`
+### 新增 Issue
 
-### 正式发布并归档
+- `把下面 3 个内容点整理成一期 newsletter，并在第二个 capsule 后加一段 note……`
 
-- `发布当前草稿到远端，并把对应 .md 归档到 workbench/archive/`
+### 编辑
+
+- `把昨天那篇 issue 的标题改短一点，并在第二个 capsule 后加一句旁白……`
+
+### 删除
+
+- `删除刚刚发布的那个 capsule，它的短评不合适。`
+
+## 详细规格
+
+更完整的 Prompt CMS 设计见：`docs/prompt-cms.md`
