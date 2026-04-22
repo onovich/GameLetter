@@ -1,0 +1,128 @@
+.editor-back-link {
+  color: var(--accent) !important;
+  border-color: var(--border-strong) !important;
+  background: color-mix(in srgb, var(--accent) 10%, white) !important;
+}
+
+.issue-card-expand-region {
+  overflow: hidden;
+}
+
+.issue-card-expand-inner {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.comment-section {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.comment-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comment-title h3 {
+  margin: 0;
+  color: var(--heading);
+}
+
+.comment-placeholder {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: rgba(248, 252, 255, 0.76);
+}
+
+.comment-placeholder p,
+.site-footer p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.lightbox-figure {
+  position: relative;
+  width: min(960px, 100%);
+  margin: 0;
+  border-radius: 24px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+}
+
+.lightbox-figure img {
+  width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  background: #0f172a;
+}
+
+.lightbox-figure figcaption {
+  padding: 16px 20px 20px;
+  color: var(--muted);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+  color: white;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.runtime-error-shell {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.runtime-error-card {
+  margin-top: 32px;
+}
+
+.site-footer {
+  max-width: 1380px;
+  margin: 24px auto 0;
+  padding: 8px 4px 24px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .app-header-actions {
+    justify-content: flex-start;
+  }
+
+  .ghost span {
+    display: none;
+  }
+
+  .comment-placeholder,
+  .comment-section {
+    padding: 16px;
+    border-radius: 20px;
+  }
+}

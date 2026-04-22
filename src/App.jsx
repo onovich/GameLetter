@@ -496,7 +496,7 @@ function EmbeddedCapsuleCard({ capsule, onOpenCapsule, onImageClick }) {
 function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick }) {
   const issueBlocks = getIssueBlocks(issue);
   return (
-    <div className="issue-block-list browse-issue-block-list">
+    <div className="issue-block-list">
       {issueBlocks.map((block, index) => {
         if (block.type === 'capsule-ref') {
           const capsule = capsulesById.get(block.capsuleId);
@@ -528,7 +528,7 @@ function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick }) {
 
 function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById }) {
   return (
-    <motion.article {...cardMotion} className="issue-list-item published browse-card">
+    <motion.article {...cardMotion} className="issue-list-item published">
       <div className="item-head">
         <div className="item-main">
           <button type="button" className="item-title-trigger" onClick={() => onOpenIssue(issue.slug)}>
@@ -603,7 +603,7 @@ function BrowseCapsuleCard({ capsule, onOpenCapsule, onImageClick, onToggleTag, 
   const blocks = getCapsuleBlocks(capsule);
 
   return (
-    <motion.article {...cardMotion} className="capsule-card published browse-card" onClick={() => onOpenCapsule(capsule.slug)}>
+    <motion.article {...cardMotion} className="capsule-card published" onClick={() => onOpenCapsule(capsule.slug)}>
       <div className="item-head">
         <div className="item-main item-main-compact">
           <div className="item-meta">
@@ -811,7 +811,7 @@ export default function App() {
     <div className="app-shell">
       <Header site={site} onShare={handleShare} />
 
-      <div className="workspace browse-workspace">
+      <div className="workspace">
         <aside className="nav-column">
           <section className="card nav-card">
             <nav className={`mode-tabs ${mode === 'capsule' ? 'capsule-active' : 'issue-active'}`} aria-label="浏览模式切换">
@@ -861,7 +861,7 @@ export default function App() {
         </main>
 
         <aside className="side-column">
-          <section className="card side-card browse-search-card">
+          <section className="card side-card">
             <input
               className="search-input"
               type="text"

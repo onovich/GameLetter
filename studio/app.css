@@ -322,11 +322,18 @@ button.secondary {
   box-shadow: none;
 }
 
-button.ghost {
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
   background: rgba(255, 255, 255, 0.72);
   color: var(--muted);
   border: 1px solid var(--border);
   box-shadow: none;
+  text-decoration: none;
 }
 
 .settings-toggle {
