@@ -51,6 +51,183 @@ function renderText(value = '') {
   return applyPanguSpacing(value);
 }
 
+function normalizeLineEndings(value = '') {
+  return String(value).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
+function parseStructuredFields(lines = []) {
+  const fields = {};
+  lines.forEach((line) => {
+    const separatorIndex = line.indexOf(':');
+    if (separatorIndex === -1) {
+      return;
+    }
+    const key = line.slice(0, separatorIndex).trim();
+    const value = line.slice(separatorIndex + 1).trim();
+    if (key) {
+      fields[key] = value;
+    }
+  });
+  return fields;
+}
+
+function createTextBlock(text = '') {
+  return { type: 'text', text };
+}
+
+function createImageBlock(url = '', caption = '') {
+  return { type: 'image', url, caption };
+}
+
+function createLinkBlock(text = '', url = '') {
+  return { type: 'link', text, url };
+}
+
+function isLikelyImageUrl(url = '') {
+  if (!url) {
+    return false;
+  }
+  return /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(url)
+    || /images\.unsplash\.com|cdn\.|image\.|imgur\.com|cloudinary\.com/i.test(url);
+}
+
+function isLikelyWebUrl(url = '') {
+  return /^https?:\/\/\S+$/i.test(String(url || '').trim());
+}
+
+function parseChunkToCapsuleBlock(chunk = '') {
+  const normalized = String(chunk || '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const lines = normalized.split('\n').map((line) => line.trim());
+  const marker = lines[0];
+  const fields = parseStructuredFields(lines.slice(1));
+
+  if (marker === '[图片]') {
+    return createImageBlock(fields.url || '', fields.caption || '');
+  }
+
+  if (marker === '[链接]') {
+    return createLinkBlock(fields.text || fields.title || fields.url || '', fields.url || '');
+  }
+
+  if (isLikelyImageUrl(normalized)) {
+    return createImageBlock(normalized, '');
+  }
+
+  if (isLikelyWebUrl(normalized)) {
+    return createLinkBlock(normalized, normalized);
+  }
+
+  return createTextBlock(normalized);
+}
+
+function parseCapsuleBodyToBlocks(body = '') {
+  const normalizedBody = normalizeLineEndings(body);
+  const blocks = normalizedBody
+    .split(/\n{2,}/)
+    .map((chunk) => parseChunkToCapsuleBlock(chunk))
+    .filter(Boolean);
+  return blocks.length ? blocks : [createTextBlock('')];
+}
+
+function normalizePublishedCapsuleBlock(block) {
+  if (!block) {
+    return null;
+  }
+  if (typeof block === 'string') {
+    return parseChunkToCapsuleBlock(block);
+  }
+
+  const type = String(block.type || '').trim();
+  if (type === 'image') {
+    const imageUrl = String(block.url || block.image || block.src || '').trim();
+    return imageUrl ? createImageBlock(imageUrl, block.caption || block.text || '') : null;
+  }
+  if (type === 'link') {
+    const url = String(block.url || '').trim();
+    const text = String(block.text || block.title || block.label || url).trim();
+    return url || text ? createLinkBlock(text, url) : null;
+  }
+  if (type === 'text' || type === 'note' || type === 'thought') {
+    return createTextBlock(block.text || block.content || '');
+  }
+  if (String(block.content || '').trim()) {
+    return createTextBlock(block.content);
+  }
+  return null;
+}
+
+function parseChunkToIssueBlock(chunk = '') {
+  const normalized = String(chunk || '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const lines = normalized.split('\n').map((line) => line.trim());
+  const marker = lines[0];
+  const fields = parseStructuredFields(lines.slice(1));
+
+  if (marker === '[引用 Capsule]') {
+    const capsuleId = String(fields.capsuleId || '').trim();
+    return capsuleId ? { type: 'capsule-ref', capsuleId, title: fields.title || capsuleId } : { type: 'note', content: normalized };
+  }
+  if (marker === '[链接]') {
+    return createLinkBlock(fields.text || fields.title || fields.url || '', fields.url || '');
+  }
+  if (marker === '[图片]') {
+    return createImageBlock(fields.url || '', fields.caption || '');
+  }
+  if (isLikelyImageUrl(normalized)) {
+    return createImageBlock(normalized, '');
+  }
+  if (isLikelyWebUrl(normalized)) {
+    return createLinkBlock(normalized, normalized);
+  }
+  return { type: 'note', content: normalized };
+}
+
+function parseIssueBodyToBlocks(body = '') {
+  const normalizedBody = normalizeLineEndings(body);
+  const blocks = normalizedBody
+    .split(/\n{2,}/)
+    .map((chunk) => parseChunkToIssueBlock(chunk))
+    .filter(Boolean);
+  return blocks.length ? blocks : [{ type: 'note', content: '' }];
+}
+
+function normalizePublishedIssueBlock(block) {
+  if (!block) {
+    return null;
+  }
+  if (typeof block === 'string') {
+    return parseChunkToIssueBlock(block);
+  }
+
+  const type = String(block.type || '').trim();
+  if (type === 'capsule-ref' || (type === 'capsule' && block.capsuleId)) {
+    return { type: 'capsule-ref', capsuleId: block.capsuleId, title: block.title || block.capsuleId };
+  }
+  if (type === 'image') {
+    const imageUrl = String(block.url || block.image || block.src || '').trim();
+    return imageUrl ? createImageBlock(imageUrl, block.caption || block.text || '') : null;
+  }
+  if (type === 'link') {
+    const url = String(block.url || '').trim();
+    const text = String(block.text || block.title || block.label || url).trim();
+    return url || text ? createLinkBlock(text, url) : null;
+  }
+  if (type === 'note' || type === 'text' || type === 'thought') {
+    return { type: 'note', content: block.content || block.text || '' };
+  }
+  if (String(block.content || '').trim()) {
+    return { type: 'note', content: block.content };
+  }
+  return null;
+}
+
 function capsuleNeedsCollapse(text = '') {
   return String(text || '').length > 240;
 }
@@ -80,6 +257,24 @@ function getCapsulePreviewText(blocks = [], fallbackText = '') {
 
 function getCapsuleBlocks(capsule) {
   const payload = capsule.payload || {};
+  const normalizedBlocks = [
+    ...(Array.isArray(capsule.blocks) ? capsule.blocks : []),
+    ...(Array.isArray(payload.blocks) ? payload.blocks : [])
+  ]
+    .map((block) => normalizePublishedCapsuleBlock(block))
+    .filter(Boolean);
+
+  if (normalizedBlocks.length) {
+    return normalizedBlocks;
+  }
+
+  const serializedBody = [capsule.body, capsule.content, payload.body]
+    .find((value) => typeof value === 'string' && String(value).trim());
+
+  if (serializedBody) {
+    return parseCapsuleBodyToBlocks(serializedBody);
+  }
+
   const blocks = [];
 
   if (payload.type === 'link') {
@@ -123,12 +318,36 @@ function getCapsuleBlocks(capsule) {
   return blocks.length ? blocks : [{ type: 'text', text: capsule.summary || capsule.title || '' }];
 }
 
+function getIssueBlocks(issue) {
+  const payload = issue.payload || {};
+  const normalizedBlocks = [
+    ...(Array.isArray(issue.blocks) ? issue.blocks : []),
+    ...(Array.isArray(payload.blocks) ? payload.blocks : [])
+  ]
+    .map((block) => normalizePublishedIssueBlock(block))
+    .filter(Boolean);
+
+  if (normalizedBlocks.length) {
+    return normalizedBlocks;
+  }
+
+  const serializedBody = [issue.body, issue.content, payload.body]
+    .find((value) => typeof value === 'string' && String(value).trim());
+
+  if (serializedBody) {
+    return parseIssueBodyToBlocks(serializedBody);
+  }
+
+  return [];
+}
+
 function getIssueSearchText(issue, capsulesById) {
+  const issueBlocks = getIssueBlocks(issue);
   return [
     issue.title,
     issue.summary,
     ...(issue.tags || []),
-    ...(issue.blocks || []).map((block) => {
+    ...issueBlocks.map((block) => {
       if (block.type === 'note') {
         return block.content || '';
       }
@@ -275,9 +494,10 @@ function EmbeddedCapsuleCard({ capsule, onOpenCapsule, onImageClick }) {
 }
 
 function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick }) {
+  const issueBlocks = getIssueBlocks(issue);
   return (
     <div className="issue-block-list browse-issue-block-list">
-      {(issue.blocks || []).map((block, index) => {
+      {issueBlocks.map((block, index) => {
         if (block.type === 'capsule-ref') {
           const capsule = capsulesById.get(block.capsuleId);
           if (!capsule) {

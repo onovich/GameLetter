@@ -680,6 +680,38 @@ function parseCapsuleBodyToBlocks(body = '') {
   return blocks.length ? blocks : [createTextBlock('')];
 }
 
+function normalizePublishedCapsuleBlock(block) {
+  if (!block) {
+    return null;
+  }
+
+  if (typeof block === 'string') {
+    return parseChunkToBlock(block);
+  }
+
+  const type = String(block.type || '').trim();
+  if (type === 'image') {
+    const imageUrl = String(block.url || block.image || block.src || '').trim();
+    return imageUrl ? createImageBlock(imageUrl, block.caption || block.text || '') : null;
+  }
+
+  if (type === 'link') {
+    const url = String(block.url || '').trim();
+    const text = String(block.text || block.title || block.label || url).trim();
+    return url || text ? createLinkBlock(text, url) : null;
+  }
+
+  if (type === 'text' || type === 'note' || type === 'thought') {
+    return createTextBlock(block.text || block.content || '');
+  }
+
+  if (String(block.content || '').trim()) {
+    return createTextBlock(block.content);
+  }
+
+  return null;
+}
+
 function serializeCapsuleBlocks(blocks = []) {
   return blocks
     .map((block) => {
@@ -710,6 +742,24 @@ function getPublishedCapsuleBlocks(capsule) {
   }
 
   const payload = capsule.payload || {};
+  const normalizedBlocks = [
+    ...(Array.isArray(capsule.blocks) ? capsule.blocks : []),
+    ...(Array.isArray(payload.blocks) ? payload.blocks : [])
+  ]
+    .map((block) => normalizePublishedCapsuleBlock(block))
+    .filter(Boolean);
+
+  if (normalizedBlocks.length) {
+    return normalizedBlocks;
+  }
+
+  const serializedBody = [capsule.body, capsule.content, payload.body]
+    .find((value) => typeof value === 'string' && String(value).trim());
+
+  if (serializedBody) {
+    return parseCapsuleBodyToBlocks(serializedBody);
+  }
+
   const blocks = [];
 
   if (payload.type === 'image' && payload.url) {
@@ -925,21 +975,55 @@ function getPublishedCapsuleText(capsule) {
 
 function convertPublishedIssueToBlocks(issue) {
   const capsuleMap = getCapsuleMap();
+  const serializedBody = [issue.body, issue.content, issue.payload?.body]
+    .find((value) => typeof value === 'string' && String(value).trim());
+
+  if (serializedBody) {
+    return parseIssueBodyToBlocks(serializedBody);
+  }
+
   const blocks = [];
-  (issue.blocks || []).forEach((block) => {
-    if (block.type === 'note') {
-      blocks.push(createTextBlock(block.content || ''));
+  const sourceBlocks = [
+    ...(Array.isArray(issue.blocks) ? issue.blocks : []),
+    ...(Array.isArray(issue.payload?.blocks) ? issue.payload.blocks : [])
+  ];
+
+  sourceBlocks.forEach((block) => {
+    if (!block) {
       return;
     }
-    if (block.type === 'capsule-ref') {
-      const capsule = capsuleMap.get(block.capsuleId);
+    if (typeof block === 'string') {
+      const parsed = parseChunkToBlock(block, capsuleMap);
+      if (parsed) {
+        blocks.push(parsed);
+      }
+      return;
+    }
+    if (block.type === 'note' || block.type === 'text' || block.type === 'thought') {
+      blocks.push(createTextBlock(block.content || block.text || ''));
+      return;
+    }
+    if (block.type === 'link') {
+      blocks.push(createLinkBlock(block.text || block.title || block.url || '', block.url || ''));
+      return;
+    }
+    if (block.type === 'image') {
+      const imageUrl = String(block.url || block.image || block.src || '').trim();
+      if (imageUrl) {
+        blocks.push(createImageBlock(imageUrl, block.caption || block.text || ''));
+      }
+      return;
+    }
+    if (block.type === 'capsule-ref' || (block.type === 'capsule' && block.capsuleId)) {
+      const capsuleId = block.capsuleId;
+      const capsule = capsuleMap.get(capsuleId);
       blocks.push(
         capsule
           ? createCapsuleBlock(capsule)
           : {
               id: uid('capsule'),
               type: 'capsule',
-              capsuleId: block.capsuleId,
+              capsuleId,
               title: 'Capsule已删除',
               text: '',
               tags: []
@@ -2283,7 +2367,21 @@ function renderIssueEditorBlocks(owner, blocks) {
         return `
           ${dropBefore}
           <div class="issue-block text-block-row">
-            <textarea class="issue-text-block" data-issue-text-target="${owner}:${block.id}" rows="1" placeholder="${index === 0 ? '输入这一段内容，按 @ 可以插入 Capsule，按 # 可以补标签' : ''}">${escapeHtml(block.text)}</textarea>
+            <div class="text-shell compact">
+              <textarea class="issue-text-block" data-issue-text-target="${owner}:${block.id}" rows="1" placeholder="${index === 0 ? '输入这一段内容，按 @ 可以插入 Capsule，按 # 可以补标签' : ''}">${escapeHtml(block.text)}</textarea>
+            </div>
+          </div>
+        `;
+      }
+      if (block.type === 'image') {
+        return `
+          ${dropBefore}
+          <div class="issue-block image-block draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="issue" data-drag-owner="${owner}">
+            ${renderImagePreviewMarkup(block, { removable: true })}
+            <div class="image-inline-actions">
+              ${block.url ? `<button class="ghost small" data-action="image-open-lightbox" data-url="${escapeHtml(block.url || '')}" data-caption="${escapeHtml(block.caption || '')}">查看</button>` : ''}
+              <button class="ghost small danger" data-action="issue-remove-block" data-owner="${owner}" data-block-id="${block.id}">删除</button>
+            </div>
           </div>
         `;
       }
