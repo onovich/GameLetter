@@ -888,6 +888,16 @@ input:focus {
   gap: 12px;
 }
 
+.issue-card-expand-region {
+  overflow: hidden;
+}
+
+.issue-card-expand-inner {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+
 .comment-section {
   display: grid;
   gap: 16px;

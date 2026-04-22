@@ -478,7 +478,7 @@ function EmbeddedCapsuleCard({ capsule, onOpenCapsule, onImageClick }) {
 
       <div className="capsule-render-stack">
         {blocks.map((block, index) => (
-          <BrowseBlock key={`${capsule.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} collapsed={block.type === 'text'} />
+          <BrowseBlock key={`${capsule.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />
         ))}
       </div>
 
@@ -544,7 +544,22 @@ function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageCli
       </div>
 
       {issue.summary ? <div className="issue-summary">{renderText(issue.summary)}</div> : null}
-      {active ? <IssueContent issue={issue} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} /> : null}
+      <AnimatePresence initial={false}>
+        {active ? (
+          <motion.div
+            key={`${issue.id}-expanded`}
+            className="issue-card-expand-region"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.26, ease: 'easeInOut' }}
+          >
+            <div className="issue-card-expand-inner">
+              <IssueContent issue={issue} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} />
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <div className="card-bottom-row">
         <div className="item-tags">
@@ -564,16 +579,28 @@ function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageCli
         </div>
       </div>
 
-      {active ? <CommentSection issue={{ id: issue.id }} /> : null}
+      <AnimatePresence initial={false}>
+        {active ? (
+          <motion.div
+            key={`${issue.id}-comments`}
+            className="issue-card-expand-region"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.26, ease: 'easeInOut', delay: 0.03 }}
+          >
+            <div className="issue-card-expand-inner">
+              <CommentSection issue={{ id: issue.id }} />
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </motion.article>
   );
 }
 
-function BrowseCapsuleCard({ capsule, active, onOpenCapsule, onImageClick, onToggleTag, activeTags, expanded, onToggleExpanded }) {
+function BrowseCapsuleCard({ capsule, onOpenCapsule, onImageClick, onToggleTag, activeTags }) {
   const blocks = getCapsuleBlocks(capsule);
-  const previewBlocks = capsulePreviewBlocks(blocks);
-  const displayedBlocks = active && expanded ? blocks : (active ? blocks : previewBlocks.length ? previewBlocks : [{ type: 'text', text: capsule.summary || '暂无正文', collapsed: true }]);
-  const previewText = !active ? getCapsulePreviewText(blocks, capsule.summary || '') : '';
 
   return (
     <motion.article {...cardMotion} className="capsule-card published browse-card" onClick={() => onOpenCapsule(capsule.slug)}>
@@ -588,11 +615,9 @@ function BrowseCapsuleCard({ capsule, active, onOpenCapsule, onImageClick, onTog
         </div>
       </div>
 
-      {previewText ? <div className="capsule-preview-body collapsed">{renderText(previewText)}</div> : null}
-
       <div className="capsule-render-stack">
-        {displayedBlocks.map((block, index) => (
-          <BrowseBlock key={`${capsule.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} collapsed={block.type === 'text' && !active} />
+        {blocks.map((block, index) => (
+          <BrowseBlock key={`${capsule.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />
         ))}
       </div>
 
@@ -612,23 +637,7 @@ function BrowseCapsuleCard({ capsule, active, onOpenCapsule, onImageClick, onTog
             </button>
           ))}
         </div>
-        {blocks.some((block) => block.type === 'text' && capsuleNeedsCollapse(block.text || '')) ? (
-          <div className="card-tools">
-            <button
-              type="button"
-              className="ghost small compact-tool"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleExpanded(capsule.id);
-              }}
-            >
-              {active && expanded ? '收起' : '展开'}
-            </button>
-          </div>
-        ) : null}
       </div>
-
-      {active ? <CommentSection issue={{ id: capsule.id }} /> : null}
     </motion.article>
   );
 }
@@ -640,7 +649,6 @@ export default function App() {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [searchByMode, setSearchByMode] = useState({ capsule: '', issue: '' });
   const [activeTagsByMode, setActiveTagsByMode] = useState({ capsule: [], issue: [] });
-  const [expandedCapsules, setExpandedCapsules] = useState({});
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -827,13 +835,10 @@ export default function App() {
                       <BrowseCapsuleCard
                         key={item.id}
                         capsule={item}
-                        active={activeCapsule?.id === item.id}
                         onOpenCapsule={openCapsule}
                         onImageClick={setLightboxImage}
                         onToggleTag={(tag) => toggleTag('capsule', tag)}
                         activeTags={activeTagsByMode.capsule}
-                        expanded={Boolean(expandedCapsules[item.id])}
-                        onToggleExpanded={(id) => setExpandedCapsules((prev) => ({ ...prev, [id]: !prev[id] }))}
                       />
                     )
                     : (
