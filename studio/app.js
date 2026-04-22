@@ -499,6 +499,18 @@ function renderTextContent(value = '') {
   return escapeHtml(applyPanguSpacing(value));
 }
 
+function parseEditorTarget(target = '') {
+  const normalized = String(target || '');
+  const separatorIndex = normalized.lastIndexOf(':');
+  if (separatorIndex === -1) {
+    return { owner: normalized, blockId: '' };
+  }
+  return {
+    owner: normalized.slice(0, separatorIndex),
+    blockId: normalized.slice(separatorIndex + 1)
+  };
+}
+
 function normalizeLineEndings(value = '') {
   return String(value).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
@@ -1376,7 +1388,7 @@ function applyTagSuggestion(tag) {
   const cursor = state.suggestion.start + tag.length + 2;
   textarea.setSelectionRange(cursor, cursor);
 
-  const [owner, blockId] = state.suggestion.target.split(':');
+  const { owner, blockId } = parseEditorTarget(state.suggestion.target);
   if (textarea.matches('[data-capsule-text-target]')) {
     syncCapsuleTextBlock(owner, blockId, nextValue);
     renderCapsuleComposerTagPreview();
@@ -1392,7 +1404,7 @@ function applyTagSuggestion(tag) {
 }
 
 function applyMentionSuggestion(capsuleId) {
-  const [owner, blockId] = String(state.suggestion.target || '').split(':');
+  const { owner, blockId } = parseEditorTarget(state.suggestion.target);
   const blocks = [...getIssueEditorBlocks(owner || 'composer')];
   const blockIndex = blocks.findIndex((block) => block.id === blockId);
   if (blockIndex === -1) {
@@ -1535,7 +1547,7 @@ function insertIssueLinkFromCommand(owner, blockId) {
 }
 
 function applySlashSuggestion(commandId) {
-  const [owner, blockId] = String(state.suggestion.target || '').split(':');
+  const { owner, blockId } = parseEditorTarget(state.suggestion.target);
   const textarea = document.querySelector(`[data-capsule-text-target="${state.suggestion.target}"]`) || document.querySelector(`[data-issue-text-target="${state.suggestion.target}"]`);
   if (!owner || !blockId || !textarea) {
     return;
@@ -2756,7 +2768,7 @@ function handleInput(event) {
   }
 
   if (target.matches('[data-capsule-text-target]')) {
-    const [owner, blockId] = target.dataset.capsuleTextTarget.split(':');
+    const { owner, blockId } = parseEditorTarget(target.dataset.capsuleTextTarget);
     syncCapsuleTextBlock(owner, blockId, target.value);
     autoResizeTextarea(target, 44);
     renderCapsuleComposerTagPreview();
@@ -2782,7 +2794,7 @@ function handleInput(event) {
   }
 
   if (target.matches('[data-issue-text-target]')) {
-    const [owner, blockId] = target.dataset.issueTextTarget.split(':');
+    const { owner, blockId } = parseEditorTarget(target.dataset.issueTextTarget);
     syncIssueBlock(owner, blockId, target.value);
     autoResizeTextarea(target, 44);
     if (owner === 'composer') {
@@ -2819,7 +2831,7 @@ function handleKeyDown(event) {
   const target = event.target;
   if (event.key === 'Backspace' && target instanceof HTMLTextAreaElement && target.matches('[data-issue-text-target]')) {
     if (!target.value && target.selectionStart === 0 && target.selectionEnd === 0) {
-      const [owner, blockId] = target.dataset.issueTextTarget.split(':');
+      const { owner, blockId } = parseEditorTarget(target.dataset.issueTextTarget);
       if (deletePreviousIssueBlock(owner, blockId)) {
         event.preventDefault();
       }
@@ -2828,7 +2840,7 @@ function handleKeyDown(event) {
 
   if (event.key === 'Backspace' && target instanceof HTMLTextAreaElement && target.matches('[data-capsule-text-target]')) {
     if (!target.value && target.selectionStart === 0 && target.selectionEnd === 0) {
-      const [owner, blockId] = target.dataset.capsuleTextTarget.split(':');
+      const { owner, blockId } = parseEditorTarget(target.dataset.capsuleTextTarget);
       if (deletePreviousCapsuleBlock(owner, blockId)) {
         event.preventDefault();
       }
