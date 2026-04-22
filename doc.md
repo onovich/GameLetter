@@ -7,6 +7,7 @@
 - 项目总览：README.md
 - 项目计划：docs/project-plan.md
 - 架构设计：docs/architecture.md
+- 内容模型：docs/content-model.md
 - 内容发布：docs/publishing-workflow.md
 - GitHub Actions / Pages 配置：docs/github-setup.md
 

@@ -31,6 +31,7 @@ GameLetter 是一个基于 GitHub 维护的静态 newsletter / daily brief 项�
 - 项目概览与入口说明：`doc.md`
 - 实施计划：`docs/project-plan.md`
 - 架构与数据模型：`docs/architecture.md`
+- 内容模型：`docs/content-model.md`
 - 内容发布流程：`docs/publishing-workflow.md`
 - GitHub Actions / Pages 配置说明：`docs/github-setup.md`
 
