@@ -84,10 +84,56 @@ GameLetter/
 ## 分层原则
 
 - 数据层：维护 `capsules` 与 `issues` 两个集合
-- 展示层：`src/components/CapsuleCard.jsx`、`src/components/IssueComposer.jsx` 等负责渲染
-- 页面层：`src/App.jsx` 负责 hash 路由、搜索范围、内容编排与 Capsule 独立访问
+- 展示层：浏览模式和编辑模式都围绕同一批内容实体与 block 类型工作
+- 页面层：`src/App.jsx` 负责浏览态三栏结构、hash 路由、搜索、标签过滤与只读内容编排
+- 编辑层：`studio/app.js` 负责编辑态三栏结构、block 编辑、slash 插入、待处理状态与本地样式系统
 - 构建层：`scripts/generate-rss.mjs` 仅从 `issues` 生成 RSS
 - 部署层：`.github/workflows/deploy.yml` 负责发布 Pages
+
+## 双界面架构
+
+当前项目实际上包含两个紧密关联的前端界面：
+
+### 1. 编辑模式
+
+- 目录：`studio/`
+- 目标：本地 Prompt CMS 工作台
+- 特征：可编辑、可生成操作单、可做样式调试
+
+### 2. 浏览模式
+
+- 目录：`src/`
+- 目标：正式阅读体验
+- 特征：只读、三栏结构、与编辑模式共享视觉语言
+
+这两个界面不应再被看作完全独立的产品，而应被看作：
+
+- 一个负责生产内容
+- 一个负责验收和消费内容
+
+## 当前内容块约束
+
+为保证编辑态与浏览态一致，当前内容应优先围绕 block 模型设计：
+
+- `text`
+- `image`
+- `link`
+- `note`
+- `capsule-ref`
+
+其中：
+
+- `Capsule` 侧主要消费 `text / image / link`
+- `Issue` 侧主要消费 `note / capsule-ref / link / image`
+
+## 运行时安全约束
+
+本轮迭代后，补充以下架构约束：
+
+- 路由初始化应尽量避免对 `window` 的不安全假设
+- GitHub Pages 与本地 `/browse/` 路径前缀应统一处理
+- 不应出现“按钮里再嵌按钮或链接”这类高风险交互结构
+- 不应只依赖 build 结果判断页面可用性
 
 ## 评论方案
 

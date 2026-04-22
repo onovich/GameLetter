@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Header } from './components/Header';
-import { ContentSidebar } from './components/ContentSidebar';
-import { CapsuleCard } from './components/CapsuleCard';
-import { IssueComposer } from './components/IssueComposer';
 import { CommentSection } from './components/CommentSection';
 import { Footer } from './components/Footer';
 import { useNewsletterData } from './hooks/useNewsletterData';
 
-const containerMotion = {
-  initial: { opacity: 0, y: 20 },
+const cardMotion = {
+  initial: { opacity: 0, y: 18 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-  transition: { duration: 0.35 }
+  transition: { duration: 0.32 }
 };
 
 function parseHashRoute(hash) {
@@ -30,8 +26,135 @@ function parseHashRoute(hash) {
   return { kind: 'home', slug: '' };
 }
 
+function getCurrentRoute() {
+  if (typeof window === 'undefined') {
+    return { kind: 'home', slug: '' };
+  }
+  return parseHashRoute(window.location.hash);
+}
+
+function getBaseUrl() {
+  return import.meta.env.BASE_URL || '/';
+}
+
 function buildHash(kind, slug) {
   return `/${kind === 'issue' ? 'issues' : 'capsules'}/${encodeURIComponent(slug)}`;
+}
+
+function applyPanguSpacing(value = '') {
+  return String(value)
+    .replace(/([\u2e80-\u9fff])([A-Za-z0-9]+)/g, '$1 $2')
+    .replace(/([A-Za-z0-9]+)([\u2e80-\u9fff])/g, '$1 $2');
+}
+
+function renderText(value = '') {
+  return applyPanguSpacing(value);
+}
+
+function capsuleNeedsCollapse(text = '') {
+  return String(text || '').length > 240;
+}
+
+function capsulePreviewBlocks(blocks = []) {
+  const preview = [];
+  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link');
+  const firstText = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
+
+  if (firstMedia) {
+    preview.push(firstMedia);
+  }
+  if (firstText) {
+    preview.push({ ...firstText, collapsed: true });
+  }
+
+  return preview;
+}
+
+function getCapsulePreviewText(blocks = [], fallbackText = '') {
+  const firstText = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
+  if (firstText) {
+    return firstText.text || '';
+  }
+  return String(fallbackText || '').trim();
+}
+
+function getCapsuleBlocks(capsule) {
+  const payload = capsule.payload || {};
+  const blocks = [];
+
+  if (payload.type === 'link') {
+    if (payload.image) {
+      blocks.push({ type: 'image', url: payload.image, caption: payload.caption || capsule.title || '' });
+    }
+    if (payload.url) {
+      blocks.push({ type: 'link', text: capsule.summary || capsule.title || '打开原文', url: payload.url });
+    }
+    if (payload.commentary) {
+      blocks.push({ type: 'text', text: payload.commentary });
+    }
+    return blocks.length ? blocks : [{ type: 'text', text: capsule.summary || '' }];
+  }
+
+  if (payload.type === 'image' && payload.url) {
+    blocks.push({ type: 'image', url: payload.url, caption: payload.caption || capsule.title || '' });
+    if (payload.commentary) {
+      blocks.push({ type: 'text', text: payload.commentary });
+    }
+    return blocks;
+  }
+
+  if (payload.type === 'thought') {
+    return [{ type: 'text', text: payload.content || capsule.summary || '' }];
+  }
+
+  if (payload.content) {
+    blocks.push({ type: 'text', text: payload.content });
+  }
+  if (payload.commentary) {
+    blocks.push({ type: 'text', text: payload.commentary });
+  }
+  if (payload.url) {
+    blocks.push({ type: 'link', text: capsule.summary || '打开原文', url: payload.url });
+  }
+  if (!blocks.some((block) => block.type === 'text' && String(block.text || '').trim()) && capsule.summary) {
+    blocks.push({ type: 'text', text: capsule.summary });
+  }
+
+  return blocks.length ? blocks : [{ type: 'text', text: capsule.summary || capsule.title || '' }];
+}
+
+function getIssueSearchText(issue, capsulesById) {
+  return [
+    issue.title,
+    issue.summary,
+    ...(issue.tags || []),
+    ...(issue.blocks || []).map((block) => {
+      if (block.type === 'note') {
+        return block.content || '';
+      }
+      if (block.type === 'capsule-ref') {
+        const capsule = capsulesById.get(block.capsuleId);
+        return capsule ? `${capsule.summary || ''} ${(capsule.tags || []).join(' ')}` : '';
+      }
+      return `${block.text || ''} ${block.url || ''}`;
+    })
+  ].join(' ').toLowerCase();
+}
+
+function getCapsuleSearchText(capsule) {
+  const blockText = getCapsuleBlocks(capsule)
+    .map((block) => block.text || block.caption || block.url || '')
+    .join(' ');
+
+  return [capsule.title, capsule.summary, ...(capsule.tags || []), blockText].join(' ').toLowerCase();
+}
+
+function getTagCounts(items = []) {
+  const counts = new Map();
+  items.forEach((item) => {
+    (item.tags || []).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1));
+  });
+  return [...counts.entries()].sort((left, right) => right[1] - left[1]);
 }
 
 function Lightbox({ image, onClose }) {
@@ -53,13 +176,7 @@ function Lightbox({ image, onClose }) {
   return (
     <AnimatePresence>
       {image ? (
-        <motion.div
-          className="lightbox-backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-        >
+        <motion.div className="lightbox-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
           <motion.figure
             className="lightbox-figure"
             initial={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -68,9 +185,7 @@ function Lightbox({ image, onClose }) {
             transition={{ duration: 0.22 }}
             onClick={(event) => event.stopPropagation()}
           >
-            <button type="button" className="lightbox-close" onClick={onClose} aria-label="关闭大图预览">
-              ×
-            </button>
+            <button type="button" className="lightbox-close" onClick={onClose} aria-label="关闭大图预览">×</button>
             <img src={image.url} alt={image.caption || 'Preview'} />
             {image.caption ? <figcaption>{image.caption}</figcaption> : null}
           </motion.figure>
@@ -80,219 +195,479 @@ function Lightbox({ image, onClose }) {
   );
 }
 
+function BrowseBlock({ block, onImageClick, collapsed = false }) {
+  if (block.type === 'image') {
+    return (
+      <div className="image-block-preview">
+        <button
+          type="button"
+          className="image-frame-button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onImageClick?.({ url: block.url, caption: block.caption || '图片' });
+          }}
+        >
+          <div className="image-frame">
+            <img className="image-block-media" src={block.url} alt={block.caption || '图片'} loading="lazy" />
+          </div>
+        </button>
+        {block.caption ? <div className="image-caption">{renderText(block.caption)}</div> : null}
+      </div>
+    );
+  }
+
+  if (block.type === 'link') {
+    return (
+      <div className="link-block-preview" onClick={(event) => event.stopPropagation()}>
+        <a className="link-block-surface" href={block.url} target="_blank" rel="noreferrer noopener">
+          <div className="link-block-copy">
+            <span className="link-block-badge">LINK</span>
+            <div className="link-block-title">{renderText(block.text || block.url)}</div>
+            <div className="link-block-url">{block.url}</div>
+          </div>
+          <span className="link-block-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    );
+  }
+
+  return <div className={`capsule-content ${collapsed || capsuleNeedsCollapse(block.text) ? 'collapsed' : ''}`}>{renderText(block.text || '')}</div>;
+}
+
+function EmbeddedCapsuleCard({ capsule, onOpenCapsule, onImageClick }) {
+  const blocks = getCapsuleBlocks(capsule);
+
+  return (
+    <motion.article
+      {...cardMotion}
+      role="button"
+      tabIndex={0}
+      className="capsule-preview-card capsule-preview-link"
+      onClick={() => onOpenCapsule(capsule.slug)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpenCapsule(capsule.slug);
+        }
+      }}
+    >
+      <div className="item-head">
+        <div className="item-main item-main-compact">
+          <div className="item-meta">
+            <span className="hint item-timestamp">{capsule.dateLabel}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="capsule-render-stack">
+        {blocks.map((block, index) => (
+          <BrowseBlock key={`${capsule.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} collapsed={block.type === 'text'} />
+        ))}
+      </div>
+
+      <div className="card-bottom-row">
+        <div className="item-tags">
+          {(capsule.tags || []).map((tag) => (
+            <span key={tag} className="tag-chip">#{tag}</span>
+          ))}
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick }) {
+  return (
+    <div className="issue-block-list browse-issue-block-list">
+      {(issue.blocks || []).map((block, index) => {
+        if (block.type === 'capsule-ref') {
+          const capsule = capsulesById.get(block.capsuleId);
+          if (!capsule) {
+            return null;
+          }
+
+          return <EmbeddedCapsuleCard key={`${issue.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} />;
+        }
+
+        if (block.type === 'note') {
+          return (
+            <motion.aside key={`${issue.id}-note-${index}`} {...cardMotion} className="issue-note-block">
+              <div className="issue-note-label">Editor&apos;s note</div>
+              <p>{renderText(block.content || '')}</p>
+            </motion.aside>
+          );
+        }
+
+        if (block.type === 'link' || block.type === 'image') {
+          return <BrowseBlock key={`${issue.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />;
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
+
+function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById }) {
+  return (
+    <motion.article {...cardMotion} className={`issue-list-item published browse-card ${active ? 'active' : ''}`}>
+      <div className="item-head">
+        <div className="item-main">
+          <button type="button" className="item-title-trigger" onClick={() => onOpenIssue(issue.slug)}>
+            {renderText(issue.title)}
+          </button>
+          <div className="item-meta">
+            <span className="hint item-timestamp">{issue.dateLabel}</span>
+          </div>
+        </div>
+        <div className="item-side item-side-compact">
+          <div className="card-status"><span className="status-pill published">已发布</span></div>
+        </div>
+      </div>
+
+      {issue.summary ? <div className="issue-summary">{renderText(issue.summary)}</div> : null}
+      {active ? <IssueContent issue={issue} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} /> : null}
+
+      <div className="card-bottom-row">
+        <div className="item-tags">
+          {(issue.tags || []).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-chip ${activeTags.some((item) => item.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleTag(tag);
+              }}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {active ? <CommentSection issue={{ id: issue.id }} /> : null}
+    </motion.article>
+  );
+}
+
+function BrowseCapsuleCard({ capsule, active, onOpenCapsule, onImageClick, onToggleTag, activeTags, expanded, onToggleExpanded }) {
+  const blocks = getCapsuleBlocks(capsule);
+  const previewBlocks = capsulePreviewBlocks(blocks);
+  const displayedBlocks = active && expanded ? blocks : (active ? blocks : previewBlocks.length ? previewBlocks : [{ type: 'text', text: capsule.summary || '暂无正文', collapsed: true }]);
+  const previewText = !active ? getCapsulePreviewText(blocks, capsule.summary || '') : '';
+
+  return (
+    <motion.article {...cardMotion} className={`capsule-card published browse-card ${active ? 'active' : ''}`} onClick={() => onOpenCapsule(capsule.slug)}>
+      <div className="item-head">
+        <div className="item-main item-main-compact">
+          <div className="item-meta">
+            <span className="hint item-timestamp">{capsule.dateLabel}</span>
+          </div>
+        </div>
+        <div className="item-side item-side-compact">
+          <div className="card-status"><span className="status-pill published">已发布</span></div>
+        </div>
+      </div>
+
+      {previewText ? <div className="capsule-preview-body collapsed">{renderText(previewText)}</div> : null}
+
+      <div className="capsule-render-stack">
+        {displayedBlocks.map((block, index) => (
+          <BrowseBlock key={`${capsule.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} collapsed={block.type === 'text' && !active} />
+        ))}
+      </div>
+
+      <div className="card-bottom-row">
+        <div className="item-tags">
+          {(capsule.tags || []).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-chip ${activeTags.some((item) => item.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleTag(tag);
+              }}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+        {blocks.some((block) => block.type === 'text' && capsuleNeedsCollapse(block.text || '')) ? (
+          <div className="card-tools">
+            <button
+              type="button"
+              className="ghost small compact-tool"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleExpanded(capsule.id);
+              }}
+            >
+              {active && expanded ? '收起' : '展开'}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      {active ? <CommentSection issue={{ id: capsule.id }} /> : null}
+    </motion.article>
+  );
+}
+
 export default function App() {
-  const { site, features, capsules, issues, loading, error } = useNewsletterData();
-  const [search, setSearch] = useState('');
-  const [searchScope, setSearchScope] = useState('all');
-  const [route, setRoute] = useState(() => parseHashRoute(window.location.hash));
+  const { site, capsules, issues, loading, error } = useNewsletterData();
+  const [route, setRoute] = useState(() => getCurrentRoute());
+  const [mode, setMode] = useState(() => (getCurrentRoute().kind === 'capsule' ? 'capsule' : 'issue'));
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [searchByMode, setSearchByMode] = useState({ capsule: '', issue: '' });
+  const [activeTagsByMode, setActiveTagsByMode] = useState({ capsule: [], issue: [] });
+  const [expandedCapsules, setExpandedCapsules] = useState({});
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
     const handleHashChange = () => setRoute(parseHashRoute(window.location.hash));
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   useEffect(() => {
-    if (!features?.searchScopes?.length) {
-      return;
+    if (route.kind === 'capsule') {
+      setMode('capsule');
+    } else if (route.kind === 'issue') {
+      setMode('issue');
     }
-
-    if (!features.searchScopes.includes(searchScope)) {
-      setSearchScope(features.searchScopes[0]);
-    }
-  }, [features, searchScope]);
-
-  const sortedIssues = useMemo(
-    () => [...issues].sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
-    [issues]
-  );
-
-  const feedIssues = useMemo(
-    () => sortedIssues.filter((issue) => issue.visibility.homepage !== false),
-    [sortedIssues]
-  );
+  }, [route.kind]);
 
   const capsulesById = useMemo(() => new Map(capsules.map((capsule) => [capsule.id, capsule])), [capsules]);
   const issuesBySlug = useMemo(() => new Map(issues.map((issue) => [issue.slug, issue])), [issues]);
   const capsulesBySlug = useMemo(() => new Map(capsules.map((capsule) => [capsule.slug, capsule])), [capsules]);
 
-  const searchResults = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) {
-      return [];
-    }
+  const sortedIssues = useMemo(
+    () => [...issues].filter((item) => item.visibility?.direct !== false).sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
+    [issues]
+  );
 
-    const includes = (entry) => {
-      const text = [entry.title, entry.summary, ...(entry.tags || [])].join(' ').toLowerCase();
-      return text.includes(query);
+  const sortedCapsules = useMemo(
+    () => [...capsules].filter((item) => item.visibility?.direct !== false).sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
+    [capsules]
+  );
+
+  const filterByTags = (item, currentMode) => {
+    const selectedTags = activeTagsByMode[currentMode] || [];
+    if (!selectedTags.length) {
+      return true;
+    }
+    return (item.tags || []).some((tag) => selectedTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()));
+  };
+
+  const filteredIssues = useMemo(() => {
+    const query = searchByMode.issue.trim().toLowerCase();
+    return sortedIssues.filter((issue) => {
+      if (!filterByTags(issue, 'issue')) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return getIssueSearchText(issue, capsulesById).includes(query);
+    });
+  }, [sortedIssues, searchByMode.issue, activeTagsByMode.issue, capsulesById]);
+
+  const filteredCapsules = useMemo(() => {
+    const query = searchByMode.capsule.trim().toLowerCase();
+    return sortedCapsules.filter((capsule) => {
+      if (!filterByTags(capsule, 'capsule')) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return getCapsuleSearchText(capsule).includes(query);
+    });
+  }, [sortedCapsules, searchByMode.capsule, activeTagsByMode.capsule]);
+
+  const activeIssue = mode === 'issue'
+    ? filteredIssues.find((issue) => issue.slug === route.slug) || filteredIssues[0] || null
+    : null;
+
+  const activeCapsule = mode === 'capsule'
+    ? filteredCapsules.find((capsule) => capsule.slug === route.slug) || filteredCapsules[0] || null
+    : null;
+
+  useEffect(() => {
+    const activeTitle = mode === 'capsule'
+      ? (activeCapsule?.title || site?.title || 'GameLetter')
+      : (activeIssue?.title || site?.title || 'GameLetter');
+    document.title = `${activeTitle} · ${site?.title || 'GameLetter'}`;
+  }, [activeCapsule, activeIssue, mode, site]);
+
+  useEffect(() => {
+    document.body.dataset.mode = mode;
+    return () => {
+      delete document.body.dataset.mode;
     };
-
-    const results = [];
-
-    if (searchScope === 'all' || searchScope === 'issues') {
-      sortedIssues
-        .filter((entry) => entry.visibility.search !== false && includes(entry))
-        .forEach((entry) => results.push(entry));
-    }
-
-    if (searchScope === 'all' || searchScope === 'capsules') {
-      capsules
-        .filter((entry) => entry.visibility.search !== false && includes(entry))
-        .forEach((entry) => results.push(entry));
-    }
-
-    return results.sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id));
-  }, [capsules, search, searchScope, sortedIssues]);
+  }, [mode]);
 
   const openIssue = (slug) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     window.location.hash = buildHash('issue', slug);
   };
 
   const openCapsule = (slug) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     window.location.hash = buildHash('capsule', slug);
   };
 
-  const currentIssue = route.kind === 'issue' ? issuesBySlug.get(route.slug) : null;
-  const currentCapsule = route.kind === 'capsule' ? capsulesBySlug.get(route.slug) : null;
-  const fallbackIssue = route.kind === 'home' ? feedIssues[0] : null;
-  const displayedIssue = currentIssue || fallbackIssue;
-  const activeKey = currentCapsule
-    ? `capsule:${currentCapsule.id}`
-    : displayedIssue
-      ? `issue:${displayedIssue.id}`
-      : '';
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    if (nextMode === 'capsule') {
+      const next = capsulesBySlug.get(route.slug) || filteredCapsules[0] || sortedCapsules[0];
+      if (next) {
+        openCapsule(next.slug);
+      }
+      return;
+    }
+    const next = issuesBySlug.get(route.slug) || filteredIssues[0] || sortedIssues[0];
+    if (next) {
+      openIssue(next.slug);
+    }
+  };
 
-  useEffect(() => {
-    const activeTitle = currentCapsule?.title || displayedIssue?.title || site?.title || 'GameLetter';
-    document.title = `${activeTitle} · ${site?.title || 'GameLetter'}`;
-  }, [currentCapsule, displayedIssue, site]);
+  const toggleTag = (currentMode, tag) => {
+    setActiveTagsByMode((prev) => {
+      const exists = prev[currentMode].some((item) => item.toLowerCase() === tag.toLowerCase());
+      return {
+        ...prev,
+        [currentMode]: exists
+          ? prev[currentMode].filter((item) => item.toLowerCase() !== tag.toLowerCase())
+          : [tag, ...prev[currentMode].filter((item) => item.toLowerCase() !== tag.toLowerCase())]
+      };
+    });
+  };
 
   const handleShare = async () => {
-    const activeTitle = currentCapsule?.title || displayedIssue?.title || site?.title || 'GameLetter';
-    const activeSummary = currentCapsule?.summary || displayedIssue?.summary || site?.description || '';
-    const shareData = {
-      title: activeTitle,
-      text: activeSummary,
-      url: window.location.href
-    };
+    const activeTitle = mode === 'capsule'
+      ? (activeCapsule?.title || site?.title || 'GameLetter')
+      : (activeIssue?.title || site?.title || 'GameLetter');
+    const activeSummary = mode === 'capsule'
+      ? (activeCapsule?.summary || site?.description || '')
+      : (activeIssue?.summary || site?.description || '');
+    const shareData = { title: activeTitle, text: activeSummary, url: window.location.href };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
         return;
       }
-      await navigator.clipboard.writeText(shareData.url);
-      window.alert('链接已复制到剪贴板');
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareData.url);
+        window.alert('链接已复制到剪贴板');
+      }
     } catch (shareError) {
       console.error(shareError);
     }
   };
 
-  const relatedIssues = currentCapsule
-    ? sortedIssues.filter((issue) => issue.blocks.some((block) => block.type === 'capsule-ref' && block.capsuleId === currentCapsule.id))
-    : [];
+  const currentSearch = searchByMode[mode];
+  const currentTagCounts = getTagCounts(mode === 'capsule' ? sortedCapsules : sortedIssues);
+  const selectedTags = activeTagsByMode[mode];
+  const displayedItems = mode === 'capsule' ? filteredCapsules : filteredIssues;
 
   return (
     <div className="app-shell">
-      <Header
-        site={site}
-        searchValue={search}
-        searchScope={searchScope}
-        onSearchChange={setSearch}
-        onSearchScopeChange={setSearchScope}
-        onShare={handleShare}
-      />
+      <Header site={site} onShare={handleShare} />
 
-      <main className="layout-grid">
-        <ContentSidebar
-          feedIssues={feedIssues}
-          searchResults={searchResults}
-          activeKey={activeKey}
-          onOpenIssue={openIssue}
-          onOpenCapsule={openCapsule}
-          isSearching={Boolean(search.trim())}
-          searchScope={searchScope}
-        />
+      <div className="workspace browse-workspace">
+        <aside className="nav-column">
+          <section className="card nav-card">
+            <nav className={`mode-tabs ${mode === 'capsule' ? 'capsule-active' : 'issue-active'}`} aria-label="浏览模式切换">
+              <span className="mode-tab-indicator" aria-hidden="true" />
+              <button type="button" className={`mode-tab ${mode === 'capsule' ? 'active' : ''}`} onClick={() => switchMode('capsule')}>Capsule</button>
+              <button type="button" className={`mode-tab ${mode === 'issue' ? 'active' : ''}`} onClick={() => switchMode('issue')}>Issue</button>
+            </nav>
+          </section>
+        </aside>
 
-        <section className="content-panel">
-          {loading ? <div className="state-card">正在加载内容结构…</div> : null}
-          {error ? <div className="state-card error">{error}</div> : null}
+        <main className="main-column">
+          <section className="card section-card">
+            {loading ? <div className="empty-card"><h3>正在加载内容</h3><p className="hint">稍等片刻，正在整理浏览模式数据。</p></div> : null}
+            {error ? <div className="empty-card"><h3>加载失败</h3><p className="hint">{error}</p></div> : null}
 
-          {!loading && !error && !currentCapsule && !displayedIssue ? (
-            <div className="state-card">当前没有可展示的 Issue 或 Capsule。</div>
-          ) : null}
+            {!loading && !error ? (
+              <div className={mode === 'capsule' ? 'capsule-list' : 'issue-list'}>
+                {displayedItems.length ? displayedItems.map((item) => (
+                  mode === 'capsule'
+                    ? (
+                      <BrowseCapsuleCard
+                        key={item.id}
+                        capsule={item}
+                        active={activeCapsule?.id === item.id}
+                        onOpenCapsule={openCapsule}
+                        onImageClick={setLightboxImage}
+                        onToggleTag={(tag) => toggleTag('capsule', tag)}
+                        activeTags={activeTagsByMode.capsule}
+                        expanded={Boolean(expandedCapsules[item.id])}
+                        onToggleExpanded={(id) => setExpandedCapsules((prev) => ({ ...prev, [id]: !prev[id] }))}
+                      />
+                    )
+                    : (
+                      <BrowseIssueCard
+                        key={item.id}
+                        issue={item}
+                        active={activeIssue?.id === item.id}
+                        onOpenIssue={openIssue}
+                        onOpenCapsule={openCapsule}
+                        onImageClick={setLightboxImage}
+                        onToggleTag={(tag) => toggleTag('issue', tag)}
+                        activeTags={activeTagsByMode.issue}
+                        capsulesById={capsulesById}
+                      />
+                    )
+                )) : <div className="empty-card"><h3>没有可展示内容</h3><p className="hint">试试清空搜索或标签筛选。</p></div>}
+              </div>
+            ) : null}
+          </section>
+        </main>
 
-          {!loading && !error && currentCapsule ? (
-            <AnimatePresence mode="wait">
-              <motion.article key={`capsule-${currentCapsule.id}`} {...containerMotion} className="issue-detail">
-                <div className="tag-row">
-                  <span className="entry-kind-badge capsule">Capsule</span>
-                  {currentCapsule.tags?.map((tag) => (
-                    <span key={tag} className="tag-chip">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                <header className="issue-header">
-                  <p className="issue-date-large">{currentCapsule.dateLabel}</p>
-                  <h2>{currentCapsule.title}</h2>
-                  <p>{currentCapsule.summary}</p>
-                </header>
-
-                <CapsuleCard capsule={currentCapsule} onImageClick={setLightboxImage} />
-
-                {relatedIssues.length > 0 ? (
-                  <section className="related-issues-block">
-                    <div className="section-title big">收录于这些 Issue</div>
-                    <div className="related-issues-list">
-                      {relatedIssues.map((issue) => (
-                        <button key={issue.id} type="button" className="related-issue-button" onClick={() => openIssue(issue.slug)}>
-                          <span>{issue.title}</span>
-                          <small>{issue.dateLabel}</small>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                <CommentSection issue={{ id: currentCapsule.id }} />
-              </motion.article>
-            </AnimatePresence>
-          ) : null}
-
-          {!loading && !error && !currentCapsule && displayedIssue ? (
-            <AnimatePresence mode="wait">
-              <motion.article key={`issue-${displayedIssue.id}`} {...containerMotion} className="issue-detail">
-                <div className="tag-row">
-                  <span className="entry-kind-badge issue">Issue</span>
-                  {displayedIssue.tags?.map((tag) => (
-                    <span key={tag} className="tag-chip">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                <header className="issue-header">
-                  <p className="issue-date-large">{displayedIssue.dateLabel}</p>
-                  <h2>{displayedIssue.title}</h2>
-                  <p>{displayedIssue.summary}</p>
-                </header>
-
-                <IssueComposer
-                  issue={displayedIssue}
-                  capsulesById={capsulesById}
-                  onOpenCapsule={openCapsule}
-                  onImageClick={setLightboxImage}
-                />
-
-                <CommentSection issue={{ id: displayedIssue.id }} />
-              </motion.article>
-            </AnimatePresence>
-          ) : null}
-        </section>
-      </main>
+        <aside className="side-column">
+          <section className="card side-card browse-search-card">
+            <input
+              className="search-input"
+              type="search"
+              value={currentSearch}
+              onChange={(event) => setSearchByMode((prev) => ({ ...prev, [mode]: event.target.value }))}
+              placeholder={`搜索${mode === 'capsule' ? ' Capsule' : ' Issue'}`}
+            />
+            <div className={`filter-head ${selectedTags.length ? '' : 'filter-head-compact'}`}>
+              {selectedTags.length ? (
+                <button type="button" className="clear-filter-button" onClick={() => setActiveTagsByMode((prev) => ({ ...prev, [mode]: [] }))}>
+                  清除
+                </button>
+              ) : null}
+            </div>
+            <div className="tag-sidebar-list">
+              {currentTagCounts.length ? currentTagCounts.map(([tag, count]) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`tag-chip sidebar-tag-chip ${selectedTags.some((item) => item.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}`}
+                  onClick={() => toggleTag(mode, tag)}
+                >
+                  #{tag} · {count}
+                </button>
+              )) : <p className="hint">还没有标签。</p>}
+            </div>
+          </section>
+        </aside>
+      </div>
 
       <Footer />
       <Lightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />

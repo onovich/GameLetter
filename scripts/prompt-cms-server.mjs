@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const studioDir = path.join(rootDir, 'studio');
+const distDir = path.join(rootDir, 'dist');
 const inboxDir = path.join(rootDir, 'workbench', 'inbox');
 const archiveDir = path.join(rootDir, 'workbench', 'archive');
 const pendingDir = path.join(rootDir, 'workbench', 'pending');
@@ -149,7 +150,10 @@ function inferTarget(text, frontmatter) {
   return match ? match[1] : 'auto';
 }
 
-function inferTitle(text, fileName) {
+function inferTitle(text, fileName, frontmatter = {}) {
+  if (frontmatter.title) {
+    return frontmatter.title.trim();
+  }
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (lines.length === 0) {
     return fileName.replace(/\.md$/i, '');
@@ -201,7 +205,7 @@ async function readInboxFiles() {
           size: stat.size,
           frontmatter,
           body,
-          title: inferTitle(body, entry.name),
+          title: inferTitle(body, entry.name, frontmatter),
           summary: createSummary(body),
           action: inferAction(text, frontmatter),
           kind: inferKind(text, frontmatter),
@@ -225,7 +229,7 @@ async function getInboxFile(fileName) {
     content,
     frontmatter,
     body,
-    title: inferTitle(body, safeName),
+    title: inferTitle(body, safeName, frontmatter),
     summary: createSummary(body),
     action: inferAction(combined, frontmatter),
     kind: inferKind(combined, frontmatter),
@@ -395,11 +399,19 @@ async function validateOperation(fileName) {
 }
 
 async function serveStatic(request, response, url) {
-  const requestedPath = url.pathname === '/' ? '/index.html' : url.pathname;
+  const isBrowseIndex = url.pathname === '/browse' || url.pathname === '/browse/';
+  const isBrowseAsset = url.pathname.startsWith('/browse/');
+  const isDistAsset = url.pathname.startsWith('/assets/') || url.pathname === '/data.json' || url.pathname === '/rss.xml';
+  const baseDir = (isBrowseIndex || isBrowseAsset || isDistAsset) ? distDir : studioDir;
+  const requestedPath = isBrowseIndex
+    ? '/index.html'
+    : isBrowseAsset
+      ? url.pathname.replace(/^\/browse/, '') || '/index.html'
+      : (url.pathname === '/' ? '/index.html' : url.pathname);
   const normalizedPath = path.normalize(requestedPath).replace(/^([.][.][/\\])+/, '');
-  const filePath = path.join(studioDir, normalizedPath);
+  const filePath = path.join(baseDir, normalizedPath);
 
-  if (!filePath.startsWith(studioDir)) {
+  if (!filePath.startsWith(baseDir)) {
     sendText(response, 403, 'Forbidden');
     return;
   }

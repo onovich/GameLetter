@@ -1,47 +1,36 @@
-import { Github, Rss, Search, Share2 } from 'lucide-react';
+import { Github, Rss, Share2 } from 'lucide-react';
 
-export function Header({ site, searchValue, searchScope, onSearchChange, onSearchScopeChange, onShare }) {
+export function Header({ site, onShare }) {
+  const inCmsPreview = typeof window !== 'undefined' && window.location.pathname.startsWith('/browse');
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const rssHref = site?.rssPath
+    ? new URL(String(site.rssPath).replace(/^\//, ''), window.location.origin + baseUrl).toString()
+    : `${baseUrl}rss.xml`;
+  const editorHref = baseUrl;
+
   return (
-    <header className="topbar">
-      <div className="brand-block">
-        <div className="brand-mark">G</div>
-        <div>
-          <p className="eyebrow">Daily briefing</p>
-          <h1>{site?.title || 'GameLetter'}</h1>
-        </div>
+    <header className="app-header">
+      <div className="app-header-copy">
+        <p className="eyebrow">Prompt CMS</p>
+        <h1>{site?.title || '浏览模式'}</h1>
       </div>
 
-      <div className="search-cluster">
-        <label className="search-box" aria-label="搜索内容">
-          <Search size={16} />
-          <input
-            type="search"
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="搜索标题、摘要、标签"
-          />
-        </label>
-
-        <label className="scope-select-wrap" aria-label="搜索范围">
-          <select value={searchScope} onChange={(event) => onSearchScopeChange(event.target.value)}>
-            <option value="all">全部</option>
-            <option value="issues">Issue</option>
-            <option value="capsules">Capsule</option>
-          </select>
-        </label>
-      </div>
-
-      <nav className="topbar-actions">
-        <a href={site?.rssPath || '/rss.xml'} target="_blank" rel="noreferrer">
-          <Rss size={18} />
+      <nav className="app-header-actions">
+        {inCmsPreview ? (
+          <a href={editorHref} className="ghost settings-toggle editor-back-link">
+            编辑模式
+          </a>
+        ) : null}
+        <a href={rssHref} target="_blank" rel="noreferrer" className="ghost">
+          <Rss size={16} />
           <span>RSS</span>
         </a>
-        <button type="button" onClick={onShare}>
-          <Share2 size={18} />
+        <button type="button" className="ghost" onClick={onShare}>
+          <Share2 size={16} />
           <span>分享</span>
         </button>
-        <a href={site?.repoUrl || 'https://github.com/onovich/GameLetter'} target="_blank" rel="noreferrer">
-          <Github size={18} />
+        <a href={site?.repoUrl || 'https://github.com/onovich/GameLetter'} target="_blank" rel="noreferrer" className="ghost">
+          <Github size={16} />
           <span>GitHub</span>
         </a>
       </nav>

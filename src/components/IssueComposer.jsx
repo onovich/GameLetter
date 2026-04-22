@@ -37,6 +37,36 @@ export function IssueComposer({ issue, capsulesById, onOpenCapsule, onImageClick
           );
         }
 
+        if (block.type === 'link') {
+          return (
+            <motion.a
+              key={`${issue.id}-link-${index}`}
+              {...itemMotion}
+              href={block.url}
+              target="_blank"
+              rel="noreferrer"
+              className="news-card link-card issue-inline-link-card"
+            >
+              <div className="link-card-content">
+                <span className="link-inline-badge">Link</span>
+                <h3>{block.text || block.url}</h3>
+                <p>{block.url}</p>
+              </div>
+            </motion.a>
+          );
+        }
+
+        if (block.type === 'image') {
+          return (
+            <motion.figure key={`${issue.id}-image-${index}`} {...itemMotion} className="news-card image-card image-card-clickable">
+              <button type="button" className="image-card-button" onClick={() => onImageClick?.({ url: block.url, caption: block.caption || issue.title })}>
+                <img src={block.url} alt={block.caption || issue.title} />
+              </button>
+              {block.caption ? <figcaption>{block.caption}</figcaption> : null}
+            </motion.figure>
+          );
+        }
+
         return null;
       })}
     </div>

@@ -10,6 +10,7 @@
 - 内容模型：docs/content-model.md
 - 内容发布：docs/publishing-workflow.md
 - 编辑模式 / Prompt CMS：docs/prompt-cms.md
+- 本轮编辑 / 浏览一体化纪要：docs/session-2026-04-22-editor-browse-iteration.md
 - GitHub Actions / Pages 配置：docs/github-setup.md
 
 ## 当前重构目标

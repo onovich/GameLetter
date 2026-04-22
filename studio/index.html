@@ -9,19 +9,19 @@
   <body>
     <div class="app-shell">
       <header class="app-header">
-        <div>
+        <div class="app-header-copy">
           <p class="eyebrow">Prompt CMS</p>
-          <h1>编辑模式</h1>
+          <h1 id="appTitle">编辑模式</h1>
           <p id="modeSubtitle" class="subtitle">切换到 Capsule 或 Issue，直接开始编辑。</p>
+        </div>
+        <div class="app-header-actions">
+          <button id="previewToggle" class="ghost settings-toggle" type="button" data-action="preview-open">浏览模式</button>
+          <button id="settingsToggle" class="ghost settings-toggle" type="button" data-action="settings-toggle" aria-expanded="false" aria-controls="settingsPanel">样式设置</button>
         </div>
       </header>
 
-      <nav class="mode-tabs" aria-label="编辑模式切换">
-        <button id="tabCapsule" class="mode-tab active" type="button">Capsule</button>
-        <button id="tabIssue" class="mode-tab" type="button">Issue</button>
-      </nav>
-
       <div class="workspace">
+        <aside id="modeNav" class="nav-column"></aside>
         <main class="main-column">
           <section id="modePrimary"></section>
           <section id="modeSecondary"></section>
@@ -31,6 +31,14 @@
     </div>
 
     <div id="floatingSuggestion" class="floating-suggestion hidden"></div>
+    <aside id="settingsPanel" class="settings-panel hidden"></aside>
+    <div id="lightbox" class="lightbox hidden" aria-hidden="true">
+      <button id="lightboxClose" class="lightbox-close ghost" type="button" data-action="lightbox-close" aria-label="关闭大图">关闭</button>
+      <div class="lightbox-content">
+        <img id="lightboxImage" class="lightbox-image" alt="" />
+        <p id="lightboxCaption" class="lightbox-caption"></p>
+      </div>
+    </div>
     <div id="toast" class="toast hidden"></div>
     <script type="module" src="/app.js"></script>
   </body>

@@ -34,6 +34,8 @@ GameLetter 是一个基于 GitHub 维护的静态 newsletter / daily brief 项�
 - 内容模型：`docs/content-model.md`
 - 内容发布流程：`docs/publishing-workflow.md`
 - Prompt CMS 设计：`docs/prompt-cms.md`
+- 测试与验收流程：`docs/testing-workflow.md`
+- 本轮编辑/浏览一体化纪要：`docs/session-2026-04-22-editor-browse-iteration.md`
 - 长期平台路线图：`docs/platform-roadmap.md`
 - GitHub Actions / Pages 配置说明：`docs/github-setup.md`
 
@@ -67,6 +69,19 @@ npm run cms
 - 直接为现有 Issue / Capsule 生成删除草稿
 - 自动输出内部 prompt 到 `workbench/pending/latest-prompt.txt`
 - 自动输出最新 request 到 `workbench/pending/latest-request.json`
+
+本轮迭代后，建议把 Prompt CMS 看成“三件事的组合”：
+
+- 编辑器：负责编辑 Capsule / Issue
+- 操作单生成器：负责把编辑意图落到 inbox
+- prompt 预处理器：负责把待执行意图整理给 Copilot
+
+同时，浏览模式不再只是一个单独页面，而是和编辑模式配套演进的一条只读体验链路。
+涉及两者联动的改动，默认应同时验证：
+
+- 编辑模式根页
+- 本地 `/browse/` 路由
+- 正式浏览页构建产物
 
 当前版本还不会从网页里直接触发 Copilot，但已经把“发布”所需的内部 prompt 和 request 准备好了。
 
