@@ -458,6 +458,20 @@ function getPlainEntrySearchText(entry) {
   return [entry.title, entry.summary, entry.body, entry.content, ...(entry.tags || [])].join(' ').toLowerCase();
 }
 
+function getCapsuleEmbedPreview(capsule, blocks = []) {
+  const imageBlock = blocks.find((block) => block.type === 'image' && block.url);
+  const canvasBlock = blocks.find((block) => block.type === 'canvas');
+  const textBlock = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
+  const linkBlock = blocks.find((block) => block.type === 'link' && String(block.text || block.url || '').trim());
+  const previewText = String(textBlock?.text || capsule.summary || linkBlock?.text || canvasBlock?.caption || '').trim();
+
+  return {
+    image: imageBlock,
+    eyebrow: canvasBlock ? 'Canvas Capsule' : 'Capsule',
+    text: previewText
+  };
+}
+
 function getTagCounts(items = []) {
   const counts = new Map();
   items.forEach((item) => {
@@ -573,15 +587,16 @@ function BrowseBlock({ block, onImageClick, collapsed = false }) {
   return <div className={`capsule-content ${collapsed || capsuleNeedsCollapse(block.text) ? 'collapsed' : ''}`}>{renderText(block.text || '')}</div>;
 }
 
-function EmbeddedCapsuleCard({ capsule, onOpenCapsule, onImageClick }) {
+function EmbeddedCapsuleCard({ capsule, onOpenCapsule }) {
   const blocks = getCapsuleBlocks(capsule);
+  const preview = getCapsuleEmbedPreview(capsule, blocks);
 
   return (
     <motion.article
       {...cardMotion}
       role="button"
       tabIndex={0}
-      className="capsule-preview-card capsule-preview-link"
+      className={`capsule-embed-compact ${preview.image ? 'has-media' : 'text-only'}`}
       onClick={() => onOpenCapsule(capsule.slug)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -590,21 +605,18 @@ function EmbeddedCapsuleCard({ capsule, onOpenCapsule, onImageClick }) {
         }
       }}
     >
-      <div className="item-head">
-        <div className="item-main item-main-compact">
-          <p className="hint">@ 引入的 Capsule block</p>
+      {preview.image ? (
+        <div className="capsule-embed-media" aria-hidden="true">
+          <img src={preview.image.url} alt="" loading="lazy" />
         </div>
-      </div>
+      ) : null}
 
-      <div className="capsule-render-stack">
-        {blocks.map((block, index) => (
-          <BrowseBlock key={`${capsule.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />
-        ))}
-      </div>
-
-      <div className="card-bottom-row">
+      <div className="capsule-embed-copy">
+        <div className="capsule-embed-meta">{preview.eyebrow}</div>
+        <h3>{renderText(capsule.title)}</h3>
+        {preview.text ? <p>{renderText(preview.text)}</p> : null}
         <div className="item-tags">
-          {(capsule.tags || []).map((tag) => (
+          {(capsule.tags || []).slice(0, 3).map((tag) => (
             <span key={tag} className="tag-chip">#{tag}</span>
           ))}
         </div>
@@ -1142,82 +1154,78 @@ export default function App() {
 
       <div className="workspace">
         <aside className="nav-column">
-          <section className="card nav-card">
-            <nav className={`mode-tabs ${mode}-active`} aria-label="浏览模式切换">
-              <span className="mode-tab-indicator" aria-hidden="true" />
-              {modeOrder.map((item) => (
-                <button key={item} type="button" className={`mode-tab ${mode === item ? 'active' : ''}`} onClick={() => switchMode(item)}>
-                  {modeMeta[item].label}
-                </button>
-              ))}
-            </nav>
-          </section>
+          <nav className={`mode-tabs ${mode}-active`} aria-label="浏览模式切换">
+            <span className="mode-tab-indicator" aria-hidden="true" />
+            {modeOrder.map((item) => (
+              <button key={item} type="button" className={`mode-tab ${mode === item ? 'active' : ''}`} onClick={() => switchMode(item)}>
+                {modeMeta[item].label}
+              </button>
+            ))}
+          </nav>
         </aside>
 
         <main className="main-column">
-          <section className="card section-card">
-            {loading ? <div className="empty-card"><h3>正在加载内容</h3><p className="hint">稍等片刻，正在整理浏览模式数据。</p></div> : null}
-            {error ? <div className="empty-card"><h3>加载失败</h3><p className="hint">{error}</p></div> : null}
+          {loading ? <div className="empty-card"><h3>正在加载内容</h3><p className="hint">稍等片刻，正在整理浏览模式数据。</p></div> : null}
+          {error ? <div className="empty-card"><h3>加载失败</h3><p className="hint">{error}</p></div> : null}
 
-            {!loading && !error ? (
-              <div className={modeMeta[mode].className}>
-                {displayedItems.length ? displayedItems.map((item) => {
-                  if (mode === 'capsule') {
-                    return (
-                      <BrowseCapsuleCard
-                        key={item.id}
-                        capsule={item}
-                        onOpenCapsule={openCapsule}
-                        onImageClick={setLightboxImage}
-                        onToggleTag={(tag) => toggleTag('capsule', tag)}
-                        activeTags={activeTagsByMode.capsule}
-                      />
-                    );
-                  }
-                  if (mode === 'flow') {
-                    return (
-                      <BrowseFlowCard
-                        key={item.id}
-                        flow={item}
-                        onOpenFlow={openFlow}
-                        onToggleTag={(tag) => toggleTag('flow', tag)}
-                        activeTags={activeTagsByMode.flow}
-                      />
-                    );
-                  }
-                  if (mode === 'article') {
-                    return (
-                      <BrowseArticleCard
-                        key={item.id}
-                        article={item}
-                        active={activeArticle?.id === item.id}
-                        columnTitle={columnsById.get(item.columnId)?.title || ''}
-                        onOpenArticle={openArticle}
-                        onOpenCapsule={openCapsule}
-                        onImageClick={setLightboxImage}
-                        onToggleTag={(tag) => toggleTag('article', tag)}
-                        activeTags={activeTagsByMode.article}
-                        capsulesById={capsulesById}
-                      />
-                    );
-                  }
+          {!loading && !error ? (
+            <div className={modeMeta[mode].className}>
+              {displayedItems.length ? displayedItems.map((item) => {
+                if (mode === 'capsule') {
                   return (
-                    <BrowseIssueCard
+                    <BrowseCapsuleCard
                       key={item.id}
-                      issue={item}
-                      active={activeIssue?.id === item.id}
-                      onOpenIssue={openIssue}
+                      capsule={item}
                       onOpenCapsule={openCapsule}
                       onImageClick={setLightboxImage}
-                      onToggleTag={(tag) => toggleTag('issue', tag)}
-                      activeTags={activeTagsByMode.issue}
+                      onToggleTag={(tag) => toggleTag('capsule', tag)}
+                      activeTags={activeTagsByMode.capsule}
+                    />
+                  );
+                }
+                if (mode === 'flow') {
+                  return (
+                    <BrowseFlowCard
+                      key={item.id}
+                      flow={item}
+                      onOpenFlow={openFlow}
+                      onToggleTag={(tag) => toggleTag('flow', tag)}
+                      activeTags={activeTagsByMode.flow}
+                    />
+                  );
+                }
+                if (mode === 'article') {
+                  return (
+                    <BrowseArticleCard
+                      key={item.id}
+                      article={item}
+                      active={activeArticle?.id === item.id}
+                      columnTitle={columnsById.get(item.columnId)?.title || ''}
+                      onOpenArticle={openArticle}
+                      onOpenCapsule={openCapsule}
+                      onImageClick={setLightboxImage}
+                      onToggleTag={(tag) => toggleTag('article', tag)}
+                      activeTags={activeTagsByMode.article}
                       capsulesById={capsulesById}
                     />
                   );
-                }) : <div className="empty-card"><h3>没有可展示内容</h3><p className="hint">试试清空搜索或标签筛选。</p></div>}
-              </div>
-            ) : null}
-          </section>
+                }
+                return (
+                  <BrowseIssueCard
+                    key={item.id}
+                    issue={item}
+                    active={activeIssue?.id === item.id}
+                    onOpenIssue={openIssue}
+                    onOpenCapsule={openCapsule}
+                    onImageClick={setLightboxImage}
+                    onToggleTag={(tag) => toggleTag('issue', tag)}
+                    activeTags={activeTagsByMode.issue}
+                    capsulesById={capsulesById}
+                  />
+                );
+              }) : <div className="empty-card"><h3>没有可展示内容</h3><p className="hint">试试清空搜索或标签筛选。</p></div>}
+            </div>
+          ) : null}
         </main>
 
         <aside className="side-column">

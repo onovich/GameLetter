@@ -81,6 +81,95 @@
   line-height: 1.75;
 }
 
+.capsule-embed-compact {
+  display: grid;
+  grid-template-columns: minmax(118px, 168px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  min-height: 132px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--embed-border) 72%, transparent);
+  border-radius: 22px;
+  background: rgba(250, 252, 255, 0.72);
+  box-shadow: none;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.capsule-embed-compact:hover,
+.capsule-embed-compact:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--embed-border));
+  background: rgba(255, 255, 255, 0.88);
+  outline: none;
+}
+
+.capsule-embed-compact.text-only {
+  grid-template-columns: 1fr;
+  min-height: 0;
+}
+
+.capsule-embed-media {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(226, 232, 240, 0.72);
+}
+
+.capsule-embed-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 108px;
+  object-fit: cover;
+}
+
+.capsule-embed-copy {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.capsule-embed-meta {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.capsule-embed-copy h3 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.capsule-embed-copy p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--issue-body-color);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.capsule-embed-copy .item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.capsule-embed-copy .tag-chip {
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
 .canvas-block-preview {
   display: grid;
   gap: 12px;
@@ -204,9 +293,18 @@
 
   .comment-placeholder,
   .comment-section,
-  .canvas-block-preview {
+  .canvas-block-preview,
+  .capsule-embed-compact {
     padding: 16px;
     border-radius: 20px;
+  }
+
+  .capsule-embed-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .capsule-embed-media img {
+    height: 180px;
   }
 
   .canvas-block-head {

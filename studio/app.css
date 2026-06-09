@@ -1299,6 +1299,8 @@ button.tag-chip {
   .card,
   .capsule-card,
   .issue-list-item,
+  .flow-card,
+  .article-card,
   .side-card,
   .empty-card {
     padding: 16px;
