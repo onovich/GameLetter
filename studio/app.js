@@ -1075,6 +1075,19 @@ function articleBlocksToPlainText(blocks = []) {
       if (block.type === 'quote') {
         return `> ${block.content || block.text || ''}`;
       }
+      if (block.type === 'list') {
+        const ordered = block.ordered;
+        return (block.items || [])
+          .map((item, index) => ordered ? `${index + 1}. ${item}` : `- ${item}`)
+          .join('\n');
+      }
+      if (block.type === 'code') {
+        return [
+          `\`\`\`${block.language || ''}`,
+          block.content || block.text || '',
+          '```'
+        ].join('\n');
+      }
       if (block.type === 'capsule-ref') {
         return `[引用 Capsule]\ncapsuleId: ${block.capsuleId || ''}`;
       }

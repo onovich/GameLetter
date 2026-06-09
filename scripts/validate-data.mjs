@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(rootDir, 'public');
 const dataPath = path.join(publicDir, 'data.json');
+const schemaPath = path.join(rootDir, 'schemas', 'content.schema.json');
 
 const errors = [];
 const warnings = [];
@@ -16,6 +17,8 @@ const singularKindByCollection = {
   columns: 'column',
   canvases: 'canvas'
 };
+const knownVisibilityKeys = new Set(['direct', 'search', 'homepage', 'feed', 'rss']);
+const knownCollectionKeys = new Set(['issues', 'articles', 'capsules', 'flows', 'canvases']);
 
 function addError(message) {
   errors.push(message);
@@ -35,6 +38,14 @@ function readData() {
   } catch (error) {
     addError(`public/data.json is not valid JSON: ${error.message}`);
     return {};
+  }
+}
+
+function validateSchemaArtifact() {
+  try {
+    JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+  } catch (error) {
+    addError(`schemas/content.schema.json is not valid JSON: ${error.message}`);
   }
 }
 
@@ -73,10 +84,44 @@ function validateVisibility(entry, label) {
     return;
   }
   Object.entries(entry.visibility).forEach(([key, value]) => {
+    if (!knownVisibilityKeys.has(key)) {
+      addWarning(`${label} visibility.${key} is not a known visibility flag.`);
+    }
     if (typeof value !== 'boolean') {
       addError(`${label} visibility.${key} must be a boolean.`);
     }
   });
+}
+
+function validateIsoDate(value, label) {
+  if (value === undefined) {
+    return;
+  }
+  const text = String(value || '').trim();
+  if (!text || Number.isNaN(new Date(text).getTime())) {
+    addError(`${label} must be a valid date string.`);
+  }
+}
+
+function validateSeo(entry, label) {
+  if (entry.seo === undefined) {
+    return;
+  }
+  if (!isPlainObject(entry.seo)) {
+    addError(`${label}.seo must be an object.`);
+    return;
+  }
+  ['title', 'description', 'image', 'canonicalUrl'].forEach((key) => {
+    if (entry.seo[key] !== undefined && typeof entry.seo[key] !== 'string') {
+      addError(`${label}.seo.${key} must be a string.`);
+    }
+  });
+  if (entry.seo.image && !looksRemote(entry.seo.image)) {
+    validatePublicFile(entry.seo.image, `${label}.seo.image`);
+  }
+  if (entry.seo.canonicalUrl && !looksRemote(entry.seo.canonicalUrl)) {
+    addWarning(`${label}.seo.canonicalUrl should be an absolute URL.`);
+  }
 }
 
 function validateEntryIdentity(entries, kind) {
@@ -91,6 +136,8 @@ function validateEntryIdentity(entries, kind) {
     requireString(entry, 'title', label);
     validateTags(entry, label);
     validateVisibility(entry, label);
+    validateIsoDate(entry.publishedAt, `${label}.publishedAt`);
+    validateSeo(entry, label);
 
     if (entry.kind && entry.kind !== expectedKind) {
       addWarning(`${label} has kind "${entry.kind}", expected "${expectedKind}".`);
@@ -107,6 +154,49 @@ function validateEntryIdentity(entries, kind) {
       }
       slugs.set(slug, label);
     }
+  });
+}
+
+function validateSite(site) {
+  if (!isPlainObject(site)) {
+    addError('Expected "site" to be an object.');
+    return;
+  }
+  requireString(site, 'title', 'site');
+  requireString(site, 'description', 'site');
+  if (site.repoUrl && !looksRemote(site.repoUrl)) {
+    addWarning('site.repoUrl should be an absolute URL.');
+  }
+  if (site.baseUrl && !looksRemote(site.baseUrl)) {
+    addError('site.baseUrl must be an absolute URL.');
+  }
+  if (site.rssPath !== undefined && typeof site.rssPath !== 'string') {
+    addError('site.rssPath must be a string.');
+  }
+  validateSeo(site, 'site');
+}
+
+function validateFeatures(features = {}) {
+  if (features === undefined) {
+    return;
+  }
+  if (!isPlainObject(features)) {
+    addError('Expected "features" to be an object.');
+    return;
+  }
+  ['rssSources', 'homepageShows', 'searchScopes'].forEach((key) => {
+    if (features[key] === undefined) {
+      return;
+    }
+    if (!Array.isArray(features[key]) || features[key].some((item) => typeof item !== 'string' || !item.trim())) {
+      addError(`features.${key} must be an array of strings.`);
+      return;
+    }
+    features[key].forEach((item) => {
+      if (key !== 'searchScopes' && !knownCollectionKeys.has(item)) {
+        addWarning(`features.${key} contains unknown collection "${item}".`);
+      }
+    });
   });
 }
 
@@ -130,7 +220,7 @@ function validatePublicFile(entryPath, label) {
   }
 }
 
-function validateBlock(block, label, capsuleIds) {
+function validateBlock(block, label, capsuleIds, canvasIds) {
   if (!isPlainObject(block)) {
     addError(`${label} must be an object.`);
     return;
@@ -142,10 +232,26 @@ function validateBlock(block, label, capsuleIds) {
     return;
   }
 
-  if (type === 'capsule-ref' || type === 'canvas-ref') {
+  if (type === 'capsule-ref') {
     const capsuleId = requireString(block, 'capsuleId', label);
     if (capsuleId && !capsuleIds.has(capsuleId)) {
       addError(`${label} references missing capsule "${capsuleId}".`);
+    }
+    return;
+  }
+
+  if (type === 'canvas-ref') {
+    const capsuleId = String(block.capsuleId || '').trim();
+    const canvasId = String(block.canvasId || '').trim();
+    if (!capsuleId && !canvasId) {
+      addError(`${label} needs capsuleId or canvasId.`);
+      return;
+    }
+    if (capsuleId && !capsuleIds.has(capsuleId)) {
+      addError(`${label} references missing capsule "${capsuleId}".`);
+    }
+    if (canvasId && !canvasIds.has(canvasId)) {
+      addError(`${label} references missing canvas "${canvasId}".`);
     }
     return;
   }
@@ -163,12 +269,32 @@ function validateBlock(block, label, capsuleIds) {
   }
 
   if (type === 'canvas') {
+    const canvasId = String(block.canvasId || '').trim();
+    if (canvasId && !canvasIds.has(canvasId)) {
+      addError(`${label} references missing canvas "${canvasId}".`);
+    }
     const entry = String(block.entry || block.src || block.url || '').trim();
-    if (!entry) {
+    if (!entry && !canvasId) {
       addError(`${label} canvas block needs entry, src, or url.`);
       return;
     }
-    validatePublicFile(entry, `${label} canvas entry`);
+    if (entry) {
+      validatePublicFile(entry, `${label} canvas entry`);
+    }
+    return;
+  }
+
+  if (type === 'list') {
+    if (!Array.isArray(block.items) || block.items.some((item) => typeof item !== 'string' || !item.trim())) {
+      addError(`${label} list block needs a non-empty items array.`);
+    }
+    return;
+  }
+
+  if (type === 'code') {
+    if (!String(block.content || block.text || block.code || '').trim()) {
+      addWarning(`${label} code block is empty.`);
+    }
     return;
   }
 
@@ -182,15 +308,15 @@ function validateBlock(block, label, capsuleIds) {
   addWarning(`${label} uses unknown block type "${type}".`);
 }
 
-function validateBlocks(entry, label, capsuleIds) {
+function validateBlocks(entry, label, capsuleIds, canvasIds) {
   const blockSources = [
     ...(Array.isArray(entry.blocks) ? entry.blocks : []),
     ...(Array.isArray(entry.payload?.blocks) ? entry.payload.blocks : [])
   ];
-  blockSources.forEach((block, index) => validateBlock(block, `${label}.blocks[${index}]`, capsuleIds));
+  blockSources.forEach((block, index) => validateBlock(block, `${label}.blocks[${index}]`, capsuleIds, canvasIds));
 }
 
-function validateCapsulePayload(capsule, label) {
+function validateCapsulePayload(capsule, label, canvasIds) {
   if (!capsule.payload) {
     return;
   }
@@ -210,29 +336,38 @@ function validateCapsulePayload(capsule, label) {
   } else if (type === 'image') {
     requireString(capsule.payload, 'url', `${label}.payload`);
   } else if (type === 'canvas') {
+    const canvasId = String(capsule.payload.canvasId || '').trim();
+    if (canvasId && !canvasIds.has(canvasId)) {
+      addError(`${label}.payload references missing canvas "${canvasId}".`);
+    }
     const entry = String(capsule.payload.entry || capsule.payload.src || capsule.payload.url || '').trim();
-    if (!entry) {
+    if (!entry && !canvasId) {
       addError(`${label}.payload canvas needs entry, src, or url.`);
     } else {
-      validatePublicFile(entry, `${label}.payload canvas entry`);
+      if (entry) {
+        validatePublicFile(entry, `${label}.payload canvas entry`);
+      }
     }
   } else if (type !== 'thought') {
     addWarning(`${label}.payload uses unknown type "${type}".`);
   }
 }
 
-function validateArticles(articles, columnIds, capsuleIds) {
+function validateArticles(articles, columnIds, capsuleIds, canvasIds) {
   articles.forEach((article, index) => {
     const label = `articles[${index}]`;
     if (article.columnId && !columnIds.has(article.columnId)) {
       addError(`${label} references missing column "${article.columnId}".`);
     }
-    validateBlocks(article, label, capsuleIds);
+    validateBlocks(article, label, capsuleIds, canvasIds);
   });
 }
 
 function validateData() {
+  validateSchemaArtifact();
   const data = readData();
+  validateSite(data.site);
+  validateFeatures(data.features || {});
   const capsules = requireArray(data, 'capsules');
   const issues = requireArray(data, 'issues');
   const flows = requireArray(data, 'flows');
@@ -249,11 +384,12 @@ function validateData() {
 
   const capsuleIds = new Set(capsules.map((capsule) => capsule.id).filter(Boolean));
   const columnIds = new Set(columns.map((column) => column.id).filter(Boolean));
+  const canvasIds = new Set(canvases.map((canvas) => canvas.id).filter(Boolean));
 
   capsules.forEach((capsule, index) => {
     const label = `capsules[${index}]`;
-    validateCapsulePayload(capsule, label);
-    validateBlocks(capsule, label, capsuleIds);
+    validateCapsulePayload(capsule, label, canvasIds);
+    validateBlocks(capsule, label, capsuleIds, canvasIds);
   });
   canvases.forEach((canvas, index) => {
     const label = `canvases[${index}]`;
@@ -264,8 +400,8 @@ function validateData() {
       validatePublicFile(entry, `${label} entry`);
     }
   });
-  issues.forEach((issue, index) => validateBlocks(issue, `issues[${index}]`, capsuleIds));
-  validateArticles(articles, columnIds, capsuleIds);
+  issues.forEach((issue, index) => validateBlocks(issue, `issues[${index}]`, capsuleIds, canvasIds));
+  validateArticles(articles, columnIds, capsuleIds, canvasIds);
 
   if (errors.length) {
     console.error('Data validation failed:');

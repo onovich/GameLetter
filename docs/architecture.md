@@ -204,6 +204,7 @@ GameLetter/
 
 ## 后续演进建议
 
-- 引入 TypeScript 约束 schema
-- 为 `items` 增加 `video` / `audio` / `markdown` 类型
-- 将 SEO 元信息做成 issue 级配置
+- Schema 已补充 `schemas/content.schema.json` 与更严格的 `scripts/validate-data.mjs`；后续若引入 TypeScript 编译链，再把同一份模型生成或同步为 TS 类型。
+- `markdown` 已作为 Article / Flow / Capsule 文本的受限渲染能力接入，不再作为独立内容实体。
+- SEO 已支持站点级兜底与实体级 `seo` 覆盖；后续可以在需要时增加更细的社交图、canonical 策略或静态预渲染。
+- `video` / `audio` 暂不考虑。

@@ -1,6 +1,12 @@
 import { getArticleBlocks, getCapsuleBlocks, getIssueBlocks } from './blocks';
 
 export function getBlockSearchText(block) {
+  if (block.type === 'list') {
+    return (block.items || []).join(' ');
+  }
+  if (block.type === 'code') {
+    return block.content || block.text || block.code || '';
+  }
   return [block.text, block.content, block.caption, block.title, block.url, block.entry]
     .filter(Boolean)
     .join(' ');

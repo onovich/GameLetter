@@ -74,12 +74,15 @@ npm run cms
 - 选择现有 Issue / Capsule 作为目标对象
 - 将现有 Capsule 一键插入到 Issue 操作单中
 - 直接为现有 Issue / Capsule 生成删除草稿
+- 编辑 Flow / Article / Canvas，并在 Capsule 中引用已登记 Canvas
 - 自动输出内部 prompt 到 `workbench/pending/latest-prompt.txt`
 - 自动输出最新 request 到 `workbench/pending/latest-request.json`
+- 浏览端动态写入基础 SEO / OG / Twitter Card 元信息
+- Article 支持基础 Markdown 块与受限行内 Markdown 渲染
 
 本轮迭代后，建议把 Prompt CMS 看成“三件事的组合”：
 
-- 编辑器：负责编辑 Capsule / Issue，后续扩展到 Flow / Article
+- 编辑器：负责编辑 Capsule / Issue / Flow / Article / Canvas
 - 操作单生成器：负责把编辑意图落到 inbox
 - prompt 预处理器：负责把待执行意图整理给 Copilot
 
@@ -99,6 +102,8 @@ npm run build
 ```
 
 构建前会自动执行 RSS 生成脚本。RSS 当前收录 `Issue` 与开启 `rss` 可见性的 `Article`，不收录 `Flow`。
+
+如果部署到自定义域名，将 `VITE_BASE_PATH=/`，并同步把 `public/data.json` 里的 `site.baseUrl` 改成该域名根地址；默认 GitHub Pages 项目页仍使用 `/GameLetter/`。
 
 ## Giscus 本地配置
 

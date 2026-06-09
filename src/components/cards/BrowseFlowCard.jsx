@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { renderInlineMarkdown } from '../../content/markdown';
 import { normalizeLineEndings, renderText } from '../../content/text';
 import { cardMotion } from '../../view/animations';
 
@@ -23,7 +24,7 @@ export function BrowseFlowCard({ flow, onOpenFlow, onToggleTag, activeTags }) {
         {normalizeLineEndings(flow.body || flow.content || flow.summary || '')
           .split(/\n{2,}/)
           .filter(Boolean)
-          .map((paragraph, index) => <p key={`${flow.id}-paragraph-${index}`}>{renderText(paragraph)}</p>)}
+          .map((paragraph, index) => <p key={`${flow.id}-paragraph-${index}`}>{renderInlineMarkdown(paragraph, `${flow.id}-paragraph-${index}`)}</p>)}
       </div>
 
       <div className="card-bottom-row">

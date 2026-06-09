@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { getIssueBlocks } from '../../content/blocks';
-import { renderText } from '../../content/text';
+import { renderInlineMarkdown } from '../../content/markdown';
 import { cardMotion } from '../../view/animations';
 import { BrowseBlock } from '../blocks/BrowseBlock';
 import { EmbeddedCapsuleCard } from './EmbeddedCapsuleCard';
@@ -23,12 +23,12 @@ export function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick,
           return (
             <motion.aside key={`${issue.id}-note-${index}`} {...cardMotion} className="issue-note-block">
               <div className="issue-note-label">Editor&apos;s note</div>
-              <p>{renderText(block.content || '')}</p>
+              <p>{renderInlineMarkdown(block.content || '', `${issue.id}-note-${index}`)}</p>
             </motion.aside>
           );
         }
 
-        if (block.type === 'link' || block.type === 'image') {
+        if (block.type === 'link' || block.type === 'image' || block.type === 'canvas') {
           return <BrowseBlock key={`${issue.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />;
         }
 

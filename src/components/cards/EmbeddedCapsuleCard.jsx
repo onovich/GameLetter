@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { getCapsuleBlocks, getCapsuleEmbedPreview } from '../../content/blocks';
+import { renderInlineMarkdown } from '../../content/markdown';
 import { renderText } from '../../content/text';
 import { cardMotion } from '../../view/animations';
 
@@ -30,7 +31,7 @@ export function EmbeddedCapsuleCard({ capsule, onOpenCapsule, canvasesById }) {
       <div className="capsule-embed-copy">
         <div className="capsule-embed-meta">{preview.eyebrow}</div>
         <h3>{renderText(capsule.title)}</h3>
-        {preview.text ? <p>{renderText(preview.text)}</p> : null}
+        {preview.text ? <p>{renderInlineMarkdown(preview.text, `${capsule.id}-embed`)}</p> : null}
         <div className="item-tags">
           {(capsule.tags || []).slice(0, 3).map((tag) => (
             <span key={tag} className="tag-chip">#{tag}</span>

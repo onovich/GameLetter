@@ -102,6 +102,15 @@ npm run build
 - Tag、状态、底部工具行布局
 - Header 与 Tabs 的视觉语言
 
+### 5. Markdown / SEO 回归
+
+至少检查：
+
+- Article 正文中的 `##`、`>`、列表和代码块能被转换并渲染
+- Flow / Capsule / Article 正文中的加粗、斜体、行内代码和安全链接不会破坏布局
+- 页面切换到不同 Issue / Capsule / Flow / Article 后，`document.title`、`meta[name="description"]`、`og:title`、`og:description` 和 canonical 会同步更新
+- `npm run validate:data` 能拦截错误的 SEO 字段、缺失的 Canvas 入口、未知的 visibility 字段和无效 block
+
 ## 推荐执行顺序
 
 1. 先修功能逻辑

@@ -48,6 +48,22 @@ export function createCanvasContentBlock(canvas = {}) {
   };
 }
 
+export function createListContentBlock(items = [], ordered = false) {
+  return {
+    type: 'list',
+    ordered: Boolean(ordered),
+    items: items.map((item) => String(item || '').trim()).filter(Boolean)
+  };
+}
+
+export function createCodeContentBlock(content = '', language = '') {
+  return {
+    type: 'code',
+    language: String(language || '').trim(),
+    content: String(content || '')
+  };
+}
+
 export function isLikelyImageUrl(url = '') {
   if (!url) {
     return false;
@@ -244,6 +260,14 @@ export function normalizeArticleBlock(block, options = {}) {
   if (type === 'heading' || type === 'quote' || type === 'paragraph') {
     return { type, content: block.content || block.text || '' };
   }
+  if (type === 'list') {
+    const items = Array.isArray(block.items) ? block.items : [];
+    const normalizedList = createListContentBlock(items, block.ordered);
+    return normalizedList.items.length ? normalizedList : null;
+  }
+  if (type === 'code') {
+    return createCodeContentBlock(block.content || block.text || block.code || '', block.language || block.lang || '');
+  }
   if (type === 'canvas-ref' && block.capsuleId) {
     return { type: 'canvas-ref', capsuleId: block.capsuleId };
   }
@@ -256,6 +280,11 @@ export function parseArticleChunkToBlock(chunk = '', options = {}) {
     return null;
   }
 
+  const codeMatch = raw.match(/^```([A-Za-z0-9_-]*)\n([\s\S]*?)\n?```$/);
+  if (codeMatch) {
+    return createCodeContentBlock(codeMatch[2], codeMatch[1]);
+  }
+
   const headingMatch = raw.match(/^#{2,3}\s+(.+)$/s);
   if (headingMatch) {
     return { type: 'heading', content: headingMatch[1].trim() };
@@ -264,6 +293,13 @@ export function parseArticleChunkToBlock(chunk = '', options = {}) {
   const quoteMatch = raw.match(/^>\s?(.+)$/s);
   if (quoteMatch) {
     return { type: 'quote', content: quoteMatch[1].trim() };
+  }
+
+  const listLines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+  if (listLines.length && listLines.every((line) => /^([-*+]|\d+[.)])\s+/.test(line))) {
+    const ordered = listLines.every((line) => /^\d+[.)]\s+/.test(line));
+    const items = listLines.map((line) => line.replace(/^([-*+]|\d+[.)])\s+/, '').trim());
+    return createListContentBlock(items, ordered);
   }
 
   const issueBlock = parseIssueChunkToBlock(raw, options);
@@ -423,6 +459,12 @@ export function getCapsuleTextFromBlocks(blocks = []) {
       }
       if (block.type === 'canvas') {
         return [block.title, block.caption, block.entry].filter(Boolean).join(' ');
+      }
+      if (block.type === 'list') {
+        return (block.items || []).join('\n');
+      }
+      if (block.type === 'code') {
+        return block.content || '';
       }
       return block.title || block.text || block.content || '';
     })

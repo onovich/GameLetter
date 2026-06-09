@@ -99,17 +99,48 @@ Article 支持：
 { "type": "link", "url": "https://example.com", "text": "补充链接" }
 { "type": "image", "url": "/images/example.jpg", "caption": "补充图片" }
 { "type": "canvas", "canvasId": "canvas-orbit-field", "entry": "/canvases/orbit-field/index.html" }
+{ "type": "list", "ordered": false, "items": ["要点一", "要点二"] }
+{ "type": "code", "language": "js", "content": "console.log('demo')" }
 ```
 
 Article textarea 支持 Markdown 风格快捷写法：
 
-```markdown
+````markdown
 ## 小标题
 
 > 引文内容
+
+- 无序列表
+- 第二项
+
+1. 有序列表
+2. 第二项
+
+```js
+console.log('demo')
+```
+````
+
+发布端会将其转换为 `heading`、`quote`、`list` 与 `code` blocks。正文中的加粗、斜体、行内代码与安全链接会在浏览端作为受限 Markdown 渲染；原始 HTML 不会被直接注入页面。
+
+## SEO Schema
+
+站点与每个内容实体都可以提供可选 `seo` 对象：
+
+```json
+{
+  "seo": {
+    "title": "自定义 SEO 标题",
+    "description": "自定义 SEO 摘要",
+    "image": "/images/cover.jpg",
+    "canonicalUrl": "https://example.com/canonical"
+  }
+}
 ```
 
-发布端会将其转换为 `heading` 与 `quote` blocks。
+浏览端会基于当前 hash 路由写入 `title`、`description`、`canonical`、OpenGraph 与 Twitter Card。若内容没有显式 `seo.image`，会优先从当前内容或引用的 Capsule 中寻找第一张图。
+
+完整 JSON Schema 位于 `schemas/content.schema.json`；运行时校验仍以 `scripts/validate-data.mjs` 为准。
 
 ## Entity Schema
 

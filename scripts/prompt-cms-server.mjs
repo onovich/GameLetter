@@ -516,6 +516,11 @@ function blockFromChunk(chunk = '', target = 'issue') {
   const { marker, fields, raw } = parseStructuredChunk(chunk);
 
   if (target === 'article') {
+    const codeMatch = raw.match(/^```([A-Za-z0-9_-]*)\n([\s\S]*?)\n?```$/);
+    if (codeMatch) {
+      return { type: 'code', language: codeMatch[1].trim(), content: codeMatch[2] };
+    }
+
     const headingMatch = raw.match(/^#{2,3}\s+(.+)$/s);
     if (headingMatch) {
       return { type: 'heading', content: headingMatch[1].trim() };
@@ -524,6 +529,15 @@ function blockFromChunk(chunk = '', target = 'issue') {
     const quoteMatch = raw.match(/^>\s?(.+)$/s);
     if (quoteMatch) {
       return { type: 'quote', content: quoteMatch[1].trim() };
+    }
+
+    const listLines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+    if (listLines.length && listLines.every((line) => /^([-*+]|\d+[.)])\s+/.test(line))) {
+      return {
+        type: 'list',
+        ordered: listLines.every((line) => /^\d+[.)]\s+/.test(line)),
+        items: listLines.map((line) => line.replace(/^([-*+]|\d+[.)])\s+/, '').trim()).filter(Boolean)
+      };
     }
   }
 
@@ -569,13 +583,24 @@ function blocksFromBody(body = '', target = 'issue') {
       if (block.type === 'canvas-ref') {
         return Boolean(block.capsuleId || block.canvasId);
       }
+      if (block.type === 'list') {
+        return Array.isArray(block.items) && block.items.some((item) => String(item || '').trim());
+      }
+      if (block.type === 'code') {
+        return Boolean(String(block.content || '').trim());
+      }
       return Boolean(String(block.content || block.text || block.url || '').trim());
     });
 }
 
 function summaryFromBlocks(blocks = []) {
   return blocks
-    .map((block) => block.content || block.text || block.capsuleId || block.canvasId || '')
+    .map((block) => {
+      if (block.type === 'list') {
+        return (block.items || []).join(' ');
+      }
+      return block.content || block.text || block.capsuleId || block.canvasId || '';
+    })
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim()

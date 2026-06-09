@@ -5,7 +5,7 @@ import { ArticleContent } from './ArticleContent';
 
 function getArticleReadingMinutes(article) {
   const blockText = (article.blocks || [])
-    .map((block) => block.content || block.text || block.title || block.capsuleId || '')
+    .map((block) => (block.type === 'list' ? (block.items || []).join(' ') : (block.content || block.text || block.title || block.capsuleId || '')))
     .join(' ');
   const compact = [article.title, article.summary, article.body, article.content, blockText]
     .filter(Boolean)

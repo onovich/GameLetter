@@ -9,6 +9,7 @@ import { BrowseFlowCard } from '../components/cards/BrowseFlowCard';
 import { BrowseIssueCard } from '../components/cards/BrowseIssueCard';
 import { modeMeta, modeOrder, buildHash, getCurrentRoute, normalizeMode, parseHashRoute } from '../content/modes';
 import { getArticleSearchText, getCapsuleSearchText, getIssueSearchText, getPlainEntrySearchText, getTagCounts } from '../content/search';
+import { applySeoState, buildSeoState } from '../content/seo';
 import { modeContentMotion } from '../view/animations';
 
 function sortPublishedEntries(entries = []) {
@@ -129,10 +130,17 @@ export function BrowseScreen({ data }) {
 
   const activeEntry = { issue: activeIssue, capsule: activeCapsule, flow: activeFlow, article: activeArticle }[mode] || null;
 
+  const seoState = useMemo(() => buildSeoState({
+    site: site || {},
+    entry: activeEntry,
+    mode,
+    capsulesById,
+    canvasesById
+  }), [activeEntry, mode, site, capsulesById, canvasesById]);
+
   useEffect(() => {
-    const activeTitle = activeEntry?.title || site?.title || 'GameLetter';
-    document.title = `${activeTitle} · ${site?.title || 'GameLetter'}`;
-  }, [activeEntry, site]);
+    applySeoState(seoState);
+  }, [seoState]);
 
   useEffect(() => {
     document.body.dataset.mode = mode;

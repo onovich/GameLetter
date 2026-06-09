@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onovich.github.io/GameLetter/schemas/content.schema.json",
+  "title": "GameLetter Content Data",
+  "type": "object",
+  "required": ["site", "features", "capsules", "issues", "flows", "articles", "columns"],
+  "properties": {
+    "site": { "$ref": "#/$defs/site" },
+    "features": { "$ref": "#/$defs/features" },
+    "canvases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/canvas" },
+      "default": []
+    },
+    "capsules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capsule" }
+    },
+    "issues": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/issue" }
+    },
+    "flows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/flow" }
+    },
+    "articles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/article" }
+    },
+    "columns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/column" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" },
+      "default": []
+    },
+    "visibility": {
+      "type": "object",
+      "properties": {
+        "direct": { "type": "boolean" },
+        "search": { "type": "boolean" },
+        "homepage": { "type": "boolean" },
+        "feed": { "type": "boolean" },
+        "rss": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "seo": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "image": { "type": "string" },
+        "canonicalUrl": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "site": {
+      "type": "object",
+      "required": ["title", "description"],
+      "properties": {
+        "title": { "$ref": "#/$defs/nonEmptyString" },
+        "description": { "$ref": "#/$defs/nonEmptyString" },
+        "repoUrl": { "type": "string" },
+        "rssPath": { "type": "string" },
+        "baseUrl": { "type": "string" },
+        "seo": { "$ref": "#/$defs/seo" }
+      },
+      "additionalProperties": false
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "rssForIssuesOnly": { "type": "boolean" },
+        "homepageShowsIssuesOnly": { "type": "boolean" },
+        "rssSources": {
+          "type": "array",
+          "items": { "enum": ["issues", "articles", "capsules", "flows", "canvases"] }
+        },
+        "homepageShows": {
+          "type": "array",
+          "items": { "enum": ["issues", "articles", "capsules", "flows", "canvases"] }
+        },
+        "searchScopes": {
+          "type": "array",
+          "items": { "enum": ["all", "issues", "articles", "capsules", "flows", "canvases"] }
+        }
+      },
+      "additionalProperties": false
+    },
+    "entryBase": {
+      "type": "object",
+      "required": ["id", "slug", "title"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "slug": { "$ref": "#/$defs/nonEmptyString" },
+        "kind": { "type": "string" },
+        "title": { "$ref": "#/$defs/nonEmptyString" },
+        "summary": { "type": "string" },
+        "tags": { "$ref": "#/$defs/tags" },
+        "publishedAt": { "type": "string" },
+        "visibility": { "$ref": "#/$defs/visibility" },
+        "seo": { "$ref": "#/$defs/seo" }
+      }
+    },
+    "canvas": {
+      "allOf": [
+        { "$ref": "#/$defs/entryBase" },
+        {
+          "type": "object",
+          "required": ["entry"],
+          "properties": {
+            "kind": { "const": "canvas" },
+            "entry": { "$ref": "#/$defs/url" },
+            "aspectRatio": { "type": "string" },
+            "allowFullscreen": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "capsule": {
+      "allOf": [
+        { "$ref": "#/$defs/entryBase" },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "capsule" },
+            "payload": { "$ref": "#/$defs/capsulePayload" },
+            "blocks": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/block" }
+            }
+          }
+        }
+      ]
+    },
+    "issue": {
+      "allOf": [
+        { "$ref": "#/$defs/entryBase" },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "issue" },
+            "blocks": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/block" }
+            }
+          }
+        }
+      ]
+    },
+    "flow": {
+      "allOf": [
+        { "$ref": "#/$defs/entryBase" },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "flow" },
+            "body": { "type": "string" },
+            "content": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "article": {
+      "allOf": [
+        { "$ref": "#/$defs/entryBase" },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "article" },
+            "columnId": { "type": "string" },
+            "blocks": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/block" }
+            }
+          }
+        }
+      ]
+    },
+    "column": {
+      "type": "object",
+      "required": ["id", "slug", "title"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "slug": { "$ref": "#/$defs/nonEmptyString" },
+        "title": { "$ref": "#/$defs/nonEmptyString" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "capsulePayload": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["link", "image", "thought", "canvas"] },
+        "url": { "type": "string" },
+        "image": { "type": "string" },
+        "caption": { "type": "string" },
+        "commentary": { "type": "string" },
+        "content": { "type": "string" },
+        "author": { "type": "string" },
+        "canvasId": { "type": "string" },
+        "entry": { "type": "string" },
+        "aspectRatio": { "type": "string" },
+        "allowFullscreen": { "type": "boolean" },
+        "blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/block" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "block": {
+      "oneOf": [
+        { "$ref": "#/$defs/textBlock" },
+        { "$ref": "#/$defs/noteBlock" },
+        { "$ref": "#/$defs/paragraphBlock" },
+        { "$ref": "#/$defs/headingBlock" },
+        { "$ref": "#/$defs/quoteBlock" },
+        { "$ref": "#/$defs/imageBlock" },
+        { "$ref": "#/$defs/linkBlock" },
+        { "$ref": "#/$defs/capsuleRefBlock" },
+        { "$ref": "#/$defs/canvasRefBlock" },
+        { "$ref": "#/$defs/canvasBlock" },
+        { "$ref": "#/$defs/listBlock" },
+        { "$ref": "#/$defs/codeBlock" }
+      ]
+    },
+    "textBlock": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": { "type": { "const": "text" }, "text": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "noteBlock": {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": { "type": { "const": "note" }, "content": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "paragraphBlock": {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": { "type": { "const": "paragraph" }, "content": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "headingBlock": {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": { "type": { "const": "heading" }, "content": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "quoteBlock": {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": { "type": { "const": "quote" }, "content": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "imageBlock": {
+      "type": "object",
+      "required": ["type", "url"],
+      "properties": {
+        "type": { "const": "image" },
+        "url": { "type": "string" },
+        "caption": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "linkBlock": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "link" },
+        "url": { "type": "string" },
+        "text": { "type": "string" },
+        "title": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "capsuleRefBlock": {
+      "type": "object",
+      "required": ["type", "capsuleId"],
+      "properties": {
+        "type": { "const": "capsule-ref" },
+        "capsuleId": { "type": "string" },
+        "title": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "canvasRefBlock": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "canvas-ref" },
+        "capsuleId": { "type": "string" },
+        "canvasId": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "canvasBlock": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "canvas" },
+        "canvasId": { "type": "string" },
+        "entry": { "type": "string" },
+        "title": { "type": "string" },
+        "caption": { "type": "string" },
+        "aspectRatio": { "type": "string" },
+        "allowFullscreen": { "type": "boolean" },
+        "tags": { "$ref": "#/$defs/tags" }
+      },
+      "additionalProperties": false
+    },
+    "listBlock": {
+      "type": "object",
+      "required": ["type", "items"],
+      "properties": {
+        "type": { "const": "list" },
+        "ordered": { "type": "boolean" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "codeBlock": {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": {
+        "type": { "const": "code" },
+        "language": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
