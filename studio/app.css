@@ -21,6 +21,8 @@
   --accent: #74a7f7;
   --capsule-tab-color: #74a7f7;
   --issue-tab-color: #86cbbf;
+  --flow-tab-color: #f59e0b;
+  --article-tab-color: #8b5cf6;
   --accent-soft: rgba(116, 167, 247, 0.12);
   --danger: #dc2626;
   --warning: #d97706;
@@ -181,7 +183,7 @@ textarea:focus, input:focus {
   top: 6px;
   left: 6px;
   width: calc(100% - 12px);
-  height: calc((100% - 12px - 8px) / 2);
+  height: calc((100% - 12px - 24px) / 4);
   border-radius: 16px;
   background-color: var(--capsule-tab-color);
   box-shadow: 0 12px 24px color-mix(in srgb, var(--capsule-tab-color) 28%, transparent);
@@ -190,10 +192,28 @@ textarea:focus, input:focus {
   transition: transform var(--theme-transition-duration) ease, background-color var(--theme-transition-duration) ease, box-shadow var(--theme-transition-duration) ease;
 }
 
+.mode-tabs.capsule-active .mode-tab-indicator {
+  background-color: var(--capsule-tab-color);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--capsule-tab-color) 28%, transparent);
+  transform: translate3d(0, calc(100% + 8px), 0);
+}
+
+.mode-tabs.flow-active .mode-tab-indicator {
+  background-color: var(--flow-tab-color);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--flow-tab-color) 28%, transparent);
+  transform: translate3d(0, calc((100% + 8px) * 2), 0);
+}
+
+.mode-tabs.article-active .mode-tab-indicator {
+  background-color: var(--article-tab-color);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--article-tab-color) 28%, transparent);
+  transform: translate3d(0, calc((100% + 8px) * 3), 0);
+}
+
 .mode-tabs.issue-active .mode-tab-indicator {
   background-color: var(--issue-tab-color);
   box-shadow: 0 12px 24px color-mix(in srgb, var(--issue-tab-color) 28%, transparent);
-  transform: translate3d(0, calc(100% + 8px), 0);
+  transform: translate3d(0, 0, 0);
 }
 
 .mode-tab {
@@ -533,6 +553,8 @@ button.tag-chip {
 
 .capsule-list,
 .issue-list,
+.flow-list,
+.article-list,
 .tag-sidebar-list {
   display: grid;
   gap: 14px;
@@ -540,6 +562,8 @@ button.tag-chip {
 
 .capsule-card,
 .issue-list-item,
+.flow-card,
+.article-card,
 .issue-editor-card,
 .side-card,
 .empty-card {
@@ -743,6 +767,8 @@ button.tag-chip {
 
 .capsule-card,
 .issue-list-item,
+.flow-card,
+.article-card,
 .side-card,
 .empty-card {
   position: relative;
@@ -1069,7 +1095,8 @@ button.tag-chip {
   background: rgba(79, 70, 229, 0.16);
 }
 
-.issue-list-item.active {
+.issue-list-item.active,
+.article-card.active {
   border-color: rgba(79, 70, 229, 0.26);
   box-shadow: 0 16px 28px rgba(79, 70, 229, 0.12);
 }

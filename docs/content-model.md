@@ -1,13 +1,15 @@
-# 内容模型设计：Capsule 与 Issue
+# 内容模型设计：Capsule、Issue、Flow 与 Article
 
 ## 核心命名建议
 
-为整个项目引入两层内容概念：
+为整个项目引入四层内容概念：
 
 - `Capsule`：卡片型内容单元
 - `Issue`：文章 / 简报 / 一期内容
+- `Flow`：纯文本碎碎念
+- `Article`：长文专栏文章
 
-这是推荐的主命名。
+其中 `Column` 是 Article 的栏目容器，不直接替代 Article。
 
 ## 为什么叫 Capsule
 
@@ -35,6 +37,29 @@
 
 它能自然承接你当前项目已经存在的 newsletter 结构。
 
+## 为什么叫 Flow
+
+`Flow` 用来承载低压力的纯文本碎碎念：
+
+- 可以被直链访问
+- 可以被搜索命中
+- 默认不进入首页主 feed
+- 默认不进入 RSS
+- 不承担 newsletter 的整理感
+
+它是“公开笔记流”，不是正式发布单元。
+
+## 为什么叫 Article
+
+`Article` 用来承载长文专栏：
+
+- 单篇文章有完整论述
+- 可以归属一个 `Column`
+- 可以进入首页与 RSS
+- 可以引用 Capsule 或 Canvas Capsule 作为论据
+
+它和 Issue 的区别在于：Issue 是一期策展，Article 是一篇展开。
+
 ## 关系模型
 
 ### Capsule
@@ -46,6 +71,7 @@ Capsule 是最小可复用内容单元。
 - 一条链接推荐
 - 一张图像与说明
 - 一段独立观点
+- 一个内置可交互 HTML Canvas
 - 一个视频 / 播客 / 工具 / 游戏条目
 
 ### Issue
@@ -121,6 +147,15 @@ Issue 是编排层内容。
 }
 ```
 
+`Capsule.payload.type` 当前建议支持：
+
+- `link`
+- `image`
+- `thought`
+- `canvas`
+
+Canvas 文件建议放在 `public/canvases/<slug>/index.html`，前端以 iframe 渲染，并提供全屏打开入口。
+
 ## Issue Schema
 
 ```json
@@ -151,6 +186,60 @@ Issue 是编排层内容。
     {
       "type": "capsule-ref",
       "capsuleId": "capsule-20260422-02"
+    }
+  ]
+}
+```
+
+## Flow Schema
+
+```json
+{
+  "id": "flow-20260609-01",
+  "slug": "thinking-about-models",
+  "kind": "flow",
+  "title": "关于内容模型的一点碎碎念",
+  "summary": "Flow 是无订阅压力的纯文本流。",
+  "body": "纯文本内容……",
+  "tags": ["Flow", "Meta"],
+  "publishedAt": "2026-06-09T20:25:00+08:00",
+  "visibility": {
+    "direct": true,
+    "search": true,
+    "homepage": false,
+    "feed": false,
+    "rss": false
+  }
+}
+```
+
+## Article Schema
+
+```json
+{
+  "id": "article-20260609-01",
+  "slug": "why-game-ui-should-step-back",
+  "kind": "article",
+  "columnId": "game-interface-notes",
+  "title": "为什么好的游戏 UI 应该退后一步",
+  "summary": "长文摘要",
+  "tags": ["Article", "Game UI"],
+  "publishedAt": "2026-06-09T20:30:00+08:00",
+  "visibility": {
+    "direct": true,
+    "search": true,
+    "homepage": true,
+    "feed": true,
+    "rss": true
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "content": "长文段落"
+    },
+    {
+      "type": "canvas-ref",
+      "capsuleId": "capsule-20260609-canvas-01"
     }
   ]
 }
@@ -241,9 +330,11 @@ Issue 应更偏“阅读编排”：
     "description": "每日游戏、设计与前端灵感简报。"
   },
   "features": {
-    "rssForIssuesOnly": true,
-    "homepageShowsIssuesOnly": true,
-    "searchScopes": ["all", "issue", "capsule"]
+    "rssForIssuesOnly": false,
+    "homepageShowsIssuesOnly": false,
+    "rssSources": ["issues", "articles"],
+    "homepageShows": ["issues", "articles"],
+    "searchScopes": ["all", "issues", "capsules", "flows", "articles"]
   }
 }
 ```

@@ -6,6 +6,13 @@
     <link>https://onovich.github.io/GameLetter/</link>
     <language>zh-cn</language>
     <item>
+      <title>为什么好的游戏 UI 应该退后一步</title>
+      <description>一篇用于验证 Article 长文模型的专栏样例：它不是一期简报，而是一条完整论述。</description>
+      <link>https://onovich.github.io/GameLetter/#/articles/why-game-ui-should-step-back</link>
+      <guid>https://onovich.github.io/GameLetter/#/articles/why-game-ui-should-step-back</guid>
+      <pubDate>Tue, 09 Jun 2026 12:30:00 GMT</pubDate>
+    </item>
+    <item>
       <title>Game UI、AI 玩法与独立开发工具链</title>
       <description>聚焦游戏界面审美迁移、AI 玩法设计与独立开发发布链路的三则内容。</description>
       <link>https://onovich.github.io/GameLetter/#/issues/game-ui-ai-indie-tooling</link>

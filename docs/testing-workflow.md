@@ -20,7 +20,8 @@
   - `studio/app.js`
   - `src/App.jsx`
   - `src/main.jsx`
-  - `src/styles.css`
+  - `studio/app.css`
+  - `src/browse.css`
 
 ### B. 构建检查
 

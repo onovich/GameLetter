@@ -43,9 +43,91 @@
 }
 
 .comment-placeholder p,
-.site-footer p {
+.site-footer p,
+.flow-body p,
+.article-body p {
   margin: 0;
   color: var(--muted);
+}
+
+.flow-body,
+.article-body {
+  display: grid;
+  gap: 14px;
+  color: var(--text);
+}
+
+.flow-body p,
+.article-body p {
+  color: var(--text);
+  font-size: var(--issue-body-font-size);
+  line-height: 1.78;
+  white-space: pre-wrap;
+}
+
+.article-section-heading {
+  margin: 10px 0 0;
+  color: var(--heading);
+  font-size: calc(var(--card-title-font-size) + 2px);
+}
+
+.article-quote {
+  margin: 0;
+  padding: 14px 16px;
+  border-left: 3px solid var(--article-tab-color);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--article-tab-color) 8%, white);
+  color: var(--text);
+  line-height: 1.75;
+}
+
+.canvas-block-preview {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 760px);
+  padding: 14px;
+  border: 1px solid var(--embed-border);
+  border-radius: calc(var(--card-radius) - 6px);
+  background: rgba(248, 252, 255, 0.82);
+  box-shadow: var(--shadow-soft);
+}
+
+.canvas-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.canvas-fullscreen-link {
+  flex: 0 0 auto;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 8%, white);
+}
+
+.canvas-frame-wrap {
+  width: 100%;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #0f172a;
+}
+
+.canvas-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 .lightbox-backdrop {
@@ -121,8 +203,18 @@
   }
 
   .comment-placeholder,
-  .comment-section {
+  .comment-section,
+  .canvas-block-preview {
     padding: 16px;
     border-radius: 20px;
+  }
+
+  .canvas-block-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .canvas-frame-wrap {
+    min-height: 220px;
   }
 }

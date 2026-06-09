@@ -11,16 +11,26 @@ const cardMotion = {
   transition: { duration: 0.32 }
 };
 
+const modeOrder = ['issue', 'capsule', 'flow', 'article'];
+
+const modeMeta = {
+  issue: { label: 'Issue', route: 'issues', className: 'issue-list' },
+  capsule: { label: 'Capsule', route: 'capsules', className: 'capsule-list' },
+  flow: { label: 'Flow', route: 'flows', className: 'flow-list' },
+  article: { label: 'Article', route: 'articles', className: 'article-list' }
+};
+
+function normalizeMode(kind) {
+  return modeMeta[kind] ? kind : 'issue';
+}
+
 function parseHashRoute(hash) {
   const normalized = hash.replace(/^#/, '');
   const parts = normalized.split('/').filter(Boolean);
 
-  if (parts[0] === 'issues' && parts[1]) {
-    return { kind: 'issue', slug: decodeURIComponent(parts[1]) };
-  }
-
-  if (parts[0] === 'capsules' && parts[1]) {
-    return { kind: 'capsule', slug: decodeURIComponent(parts[1]) };
+  const match = Object.entries(modeMeta).find(([, meta]) => meta.route === parts[0]);
+  if (match && parts[1]) {
+    return { kind: match[0], slug: decodeURIComponent(parts[1]) };
   }
 
   return { kind: 'home', slug: '' };
@@ -38,7 +48,15 @@ function getBaseUrl() {
 }
 
 function buildHash(kind, slug) {
-  return `/${kind === 'issue' ? 'issues' : 'capsules'}/${encodeURIComponent(slug)}`;
+  return `/${modeMeta[normalizeMode(kind)].route}/${encodeURIComponent(slug)}`;
+}
+
+function resolveAssetUrl(path = '') {
+  const value = String(path || '').trim();
+  if (!value || /^https?:\/\//i.test(value)) {
+    return value;
+  }
+  return `${getBaseUrl()}${value.replace(/^\/+/, '')}`;
 }
 
 function applyPanguSpacing(value = '') {
@@ -151,6 +169,17 @@ function normalizePublishedCapsuleBlock(block) {
     const text = String(block.text || block.title || block.label || url).trim();
     return url || text ? createLinkBlock(text, url) : null;
   }
+  if (type === 'canvas') {
+    const entry = String(block.entry || block.src || block.url || '').trim();
+    return entry ? {
+      type: 'canvas',
+      entry,
+      title: block.title || block.label || '',
+      caption: block.caption || block.summary || '',
+      aspectRatio: block.aspectRatio || '16 / 9',
+      allowFullscreen: block.allowFullscreen !== false
+    } : null;
+  }
   if (type === 'text' || type === 'note' || type === 'thought') {
     return createTextBlock(block.text || block.content || '');
   }
@@ -228,6 +257,24 @@ function normalizePublishedIssueBlock(block) {
   return null;
 }
 
+function normalizePublishedArticleBlock(block) {
+  if (!block) {
+    return null;
+  }
+  if (typeof block === 'string') {
+    return { type: 'paragraph', content: block };
+  }
+
+  const type = String(block.type || '').trim();
+  if (type === 'heading' || type === 'quote' || type === 'paragraph') {
+    return { type, content: block.content || block.text || '' };
+  }
+  if (type === 'canvas-ref' && block.capsuleId) {
+    return { type: 'canvas-ref', capsuleId: block.capsuleId };
+  }
+  return normalizePublishedIssueBlock(block);
+}
+
 function capsuleNeedsCollapse(text = '') {
   return String(text || '').length > 240;
 }
@@ -302,6 +349,17 @@ function getCapsuleBlocks(capsule) {
     return [{ type: 'text', text: payload.content || capsule.summary || '' }];
   }
 
+  if (payload.type === 'canvas') {
+    return [{
+      type: 'canvas',
+      entry: payload.entry || payload.src || payload.url || '',
+      title: payload.title || capsule.title || '',
+      caption: payload.caption || payload.commentary || capsule.summary || '',
+      aspectRatio: payload.aspectRatio || '16 / 9',
+      allowFullscreen: payload.allowFullscreen !== false
+    }];
+  }
+
   if (payload.content) {
     blocks.push({ type: 'text', text: payload.content });
   }
@@ -341,6 +399,34 @@ function getIssueBlocks(issue) {
   return [];
 }
 
+function getArticleBlocks(article) {
+  const normalizedBlocks = (Array.isArray(article.blocks) ? article.blocks : [])
+    .map((block) => normalizePublishedArticleBlock(block))
+    .filter(Boolean);
+
+  if (normalizedBlocks.length) {
+    return normalizedBlocks;
+  }
+
+  const body = [article.body, article.content]
+    .find((value) => typeof value === 'string' && String(value).trim());
+
+  if (!body) {
+    return [];
+  }
+
+  return normalizeLineEndings(body)
+    .split(/\n{2,}/)
+    .map((chunk) => ({ type: 'paragraph', content: chunk.trim() }))
+    .filter((block) => block.content);
+}
+
+function getBlockSearchText(block) {
+  return [block.text, block.content, block.caption, block.title, block.url, block.entry]
+    .filter(Boolean)
+    .join(' ');
+}
+
 function getIssueSearchText(issue, capsulesById) {
   const issueBlocks = getIssueBlocks(issue);
   return [
@@ -355,17 +441,21 @@ function getIssueSearchText(issue, capsulesById) {
         const capsule = capsulesById.get(block.capsuleId);
         return capsule ? `${capsule.summary || ''} ${(capsule.tags || []).join(' ')}` : '';
       }
-      return `${block.text || ''} ${block.url || ''}`;
+      return getBlockSearchText(block);
     })
   ].join(' ').toLowerCase();
 }
 
 function getCapsuleSearchText(capsule) {
   const blockText = getCapsuleBlocks(capsule)
-    .map((block) => block.text || block.caption || block.url || '')
+    .map((block) => getBlockSearchText(block))
     .join(' ');
 
   return [capsule.title, capsule.summary, ...(capsule.tags || []), blockText].join(' ').toLowerCase();
+}
+
+function getPlainEntrySearchText(entry) {
+  return [entry.title, entry.summary, entry.body, entry.content, ...(entry.tags || [])].join(' ').toLowerCase();
 }
 
 function getTagCounts(items = []) {
@@ -450,6 +540,36 @@ function BrowseBlock({ block, onImageClick, collapsed = false }) {
     );
   }
 
+  if (block.type === 'canvas') {
+    const canvasUrl = resolveAssetUrl(block.entry);
+    return (
+      <div className="canvas-block-preview" onClick={(event) => event.stopPropagation()}>
+        <div className="canvas-block-head">
+          <div className="link-block-copy">
+            <span className="link-block-badge">CANVAS</span>
+            {block.title ? <div className="link-block-title">{renderText(block.title)}</div> : null}
+            {block.caption ? <div className="link-block-url">{renderText(block.caption)}</div> : null}
+          </div>
+          {block.allowFullscreen && canvasUrl ? (
+            <a className="canvas-fullscreen-link" href={canvasUrl} target="_blank" rel="noreferrer noopener">
+              全屏打开
+            </a>
+          ) : null}
+        </div>
+        <div className="canvas-frame-wrap" style={{ aspectRatio: block.aspectRatio || '16 / 9' }}>
+          <iframe
+            className="canvas-frame"
+            src={canvasUrl}
+            title={block.title || 'Canvas'}
+            loading="lazy"
+            allow="fullscreen"
+            sandbox="allow-scripts allow-pointer-lock allow-popups"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return <div className={`capsule-content ${collapsed || capsuleNeedsCollapse(block.text) ? 'collapsed' : ''}`}>{renderText(block.text || '')}</div>;
 }
 
@@ -518,6 +638,51 @@ function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick }) {
 
         if (block.type === 'link' || block.type === 'image') {
           return <BrowseBlock key={`${issue.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />;
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
+
+function ArticleContent({ article, capsulesById, onOpenCapsule, onImageClick }) {
+  const articleBlocks = getArticleBlocks(article);
+
+  return (
+    <div className="article-body">
+      {articleBlocks.map((block, index) => {
+        if (block.type === 'heading') {
+          return <h3 key={`${article.id}-heading-${index}`} className="article-section-heading">{renderText(block.content || '')}</h3>;
+        }
+
+        if (block.type === 'quote') {
+          return <blockquote key={`${article.id}-quote-${index}`} className="article-quote">{renderText(block.content || '')}</blockquote>;
+        }
+
+        if (block.type === 'paragraph') {
+          return <p key={`${article.id}-paragraph-${index}`}>{renderText(block.content || '')}</p>;
+        }
+
+        if (block.type === 'capsule-ref' || block.type === 'canvas-ref') {
+          const capsule = capsulesById.get(block.capsuleId);
+          if (!capsule) {
+            return null;
+          }
+          return <EmbeddedCapsuleCard key={`${article.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} />;
+        }
+
+        if (block.type === 'note') {
+          return (
+            <aside key={`${article.id}-note-${index}`} className="issue-note-block">
+              <div className="issue-note-label">Note</div>
+              <p>{renderText(block.content || '')}</p>
+            </aside>
+          );
+        }
+
+        if (block.type === 'link' || block.type === 'image' || block.type === 'canvas') {
+          return <BrowseBlock key={`${article.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />;
         }
 
         return null;
@@ -599,6 +764,108 @@ function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageCli
   );
 }
 
+function BrowseFlowCard({ flow, onOpenFlow, onToggleTag, activeTags }) {
+  return (
+    <motion.article {...cardMotion} className="flow-card published" onClick={() => onOpenFlow(flow.slug)}>
+      <div className="item-head">
+        <div className="item-main">
+          <button type="button" className="item-title-trigger" onClick={() => onOpenFlow(flow.slug)}>
+            {renderText(flow.title)}
+          </button>
+          <div className="item-meta">
+            <span className="hint item-timestamp">{flow.dateLabel}</span>
+          </div>
+        </div>
+        <div className="item-side item-side-compact">
+          <div className="card-status"><span className="status-pill published">Flow</span></div>
+        </div>
+      </div>
+
+      <div className="flow-body">
+        {normalizeLineEndings(flow.body || flow.content || flow.summary || '')
+          .split(/\n{2,}/)
+          .filter(Boolean)
+          .map((paragraph, index) => <p key={`${flow.id}-paragraph-${index}`}>{renderText(paragraph)}</p>)}
+      </div>
+
+      <div className="card-bottom-row">
+        <div className="item-tags">
+          {(flow.tags || []).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-chip ${activeTags.some((item) => item.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleTag(tag);
+              }}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+function BrowseArticleCard({ article, active, columnTitle, onOpenArticle, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById }) {
+  return (
+    <motion.article {...cardMotion} className={`article-card published ${active ? 'active' : ''}`}>
+      <div className="item-head">
+        <div className="item-main">
+          <button type="button" className="item-title-trigger" onClick={() => onOpenArticle(article.slug)}>
+            {renderText(article.title)}
+          </button>
+          <div className="item-meta">
+            {columnTitle ? <span className="hint item-timestamp">{renderText(columnTitle)}</span> : null}
+            <span className="hint item-timestamp">{article.dateLabel}</span>
+          </div>
+        </div>
+        <div className="item-side item-side-compact">
+          <div className="card-status"><span className="status-pill published">Article</span></div>
+        </div>
+      </div>
+
+      {article.summary ? <div className="issue-summary">{renderText(article.summary)}</div> : null}
+      <AnimatePresence initial={false}>
+        {active ? (
+          <motion.div
+            key={`${article.id}-expanded`}
+            className="issue-card-expand-region"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.26, ease: 'easeInOut' }}
+          >
+            <div className="issue-card-expand-inner">
+              <ArticleContent article={article} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} />
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <div className="card-bottom-row">
+        <div className="item-tags">
+          {(article.tags || []).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-chip ${activeTags.some((item) => item.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleTag(tag);
+              }}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
 function BrowseCapsuleCard({ capsule, onOpenCapsule, onImageClick, onToggleTag, activeTags }) {
   const blocks = getCapsuleBlocks(capsule);
 
@@ -643,12 +910,12 @@ function BrowseCapsuleCard({ capsule, onOpenCapsule, onImageClick, onToggleTag, 
 }
 
 export default function App() {
-  const { site, capsules, issues, loading, error } = useNewsletterData();
+  const { site, capsules, issues, flows, articles, columns, loading, error } = useNewsletterData();
   const [route, setRoute] = useState(() => getCurrentRoute());
-  const [mode, setMode] = useState(() => (getCurrentRoute().kind === 'capsule' ? 'capsule' : 'issue'));
+  const [mode, setMode] = useState(() => normalizeMode(getCurrentRoute().kind));
   const [lightboxImage, setLightboxImage] = useState(null);
-  const [searchByMode, setSearchByMode] = useState({ capsule: '', issue: '' });
-  const [activeTagsByMode, setActiveTagsByMode] = useState({ capsule: [], issue: [] });
+  const [searchByMode, setSearchByMode] = useState({ capsule: '', issue: '', flow: '', article: '' });
+  const [activeTagsByMode, setActiveTagsByMode] = useState({ capsule: [], issue: [], flow: [], article: [] });
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -661,16 +928,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (route.kind === 'capsule') {
-      setMode('capsule');
-    } else if (route.kind === 'issue') {
-      setMode('issue');
+    if (modeMeta[route.kind]) {
+      setMode(route.kind);
     }
   }, [route.kind]);
 
   const capsulesById = useMemo(() => new Map(capsules.map((capsule) => [capsule.id, capsule])), [capsules]);
-  const issuesBySlug = useMemo(() => new Map(issues.map((issue) => [issue.slug, issue])), [issues]);
-  const capsulesBySlug = useMemo(() => new Map(capsules.map((capsule) => [capsule.slug, capsule])), [capsules]);
+  const columnsById = useMemo(() => new Map((columns || []).map((column) => [column.id, column])), [columns]);
 
   const sortedIssues = useMemo(
     () => [...issues].filter((item) => item.visibility?.direct !== false).sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
@@ -680,6 +944,16 @@ export default function App() {
   const sortedCapsules = useMemo(
     () => [...capsules].filter((item) => item.visibility?.direct !== false).sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
     [capsules]
+  );
+
+  const sortedFlows = useMemo(
+    () => [...flows].filter((item) => item.visibility?.direct !== false).sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
+    [flows]
+  );
+
+  const sortedArticles = useMemo(
+    () => [...articles].filter((item) => item.visibility?.direct !== false).sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id)),
+    [articles]
   );
 
   const filterByTags = (item, currentMode) => {
@@ -716,6 +990,36 @@ export default function App() {
     });
   }, [sortedCapsules, searchByMode.capsule, activeTagsByMode.capsule]);
 
+  const filteredFlows = useMemo(() => {
+    const query = searchByMode.flow.trim().toLowerCase();
+    return sortedFlows.filter((flow) => {
+      if (!filterByTags(flow, 'flow')) {
+        return false;
+      }
+      return query ? getPlainEntrySearchText(flow).includes(query) : true;
+    });
+  }, [sortedFlows, searchByMode.flow, activeTagsByMode.flow]);
+
+  const filteredArticles = useMemo(() => {
+    const query = searchByMode.article.trim().toLowerCase();
+    return sortedArticles.filter((article) => {
+      if (!filterByTags(article, 'article')) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      const blockText = getArticleBlocks(article).map((block) => {
+        if (block.type === 'capsule-ref' || block.type === 'canvas-ref') {
+          const capsule = capsulesById.get(block.capsuleId);
+          return capsule ? getCapsuleSearchText(capsule) : '';
+        }
+        return getBlockSearchText(block);
+      }).join(' ');
+      return [getPlainEntrySearchText(article), blockText, columnsById.get(article.columnId)?.title || ''].join(' ').toLowerCase().includes(query);
+    });
+  }, [sortedArticles, searchByMode.article, activeTagsByMode.article, capsulesById, columnsById]);
+
   const activeIssue = mode === 'issue'
     ? filteredIssues.find((issue) => issue.slug === route.slug) || filteredIssues[0] || null
     : null;
@@ -724,12 +1028,20 @@ export default function App() {
     ? filteredCapsules.find((capsule) => capsule.slug === route.slug) || filteredCapsules[0] || null
     : null;
 
+  const activeFlow = mode === 'flow'
+    ? filteredFlows.find((flow) => flow.slug === route.slug) || filteredFlows[0] || null
+    : null;
+
+  const activeArticle = mode === 'article'
+    ? filteredArticles.find((article) => article.slug === route.slug) || filteredArticles[0] || null
+    : null;
+
+  const activeEntry = { issue: activeIssue, capsule: activeCapsule, flow: activeFlow, article: activeArticle }[mode] || null;
+
   useEffect(() => {
-    const activeTitle = mode === 'capsule'
-      ? (activeCapsule?.title || site?.title || 'GameLetter')
-      : (activeIssue?.title || site?.title || 'GameLetter');
+    const activeTitle = activeEntry?.title || site?.title || 'GameLetter';
     document.title = `${activeTitle} · ${site?.title || 'GameLetter'}`;
-  }, [activeCapsule, activeIssue, mode, site]);
+  }, [activeEntry, site]);
 
   useEffect(() => {
     document.body.dataset.mode = mode;
@@ -738,32 +1050,41 @@ export default function App() {
     };
   }, [mode]);
 
-  const openIssue = (slug) => {
+  const openEntry = (kind, slug) => {
     if (typeof window === 'undefined') {
       return;
     }
-    window.location.hash = buildHash('issue', slug);
+    window.location.hash = buildHash(kind, slug);
+  };
+
+  const openIssue = (slug) => {
+    openEntry('issue', slug);
   };
 
   const openCapsule = (slug) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.location.hash = buildHash('capsule', slug);
+    openEntry('capsule', slug);
+  };
+
+  const openFlow = (slug) => {
+    openEntry('flow', slug);
+  };
+
+  const openArticle = (slug) => {
+    openEntry('article', slug);
   };
 
   const switchMode = (nextMode) => {
     setMode(nextMode);
-    if (nextMode === 'capsule') {
-      const next = capsulesBySlug.get(route.slug) || filteredCapsules[0] || sortedCapsules[0];
-      if (next) {
-        openCapsule(next.slug);
-      }
-      return;
-    }
-    const next = issuesBySlug.get(route.slug) || filteredIssues[0] || sortedIssues[0];
+    const itemsByMode = {
+      issue: filteredIssues.length ? filteredIssues : sortedIssues,
+      capsule: filteredCapsules.length ? filteredCapsules : sortedCapsules,
+      flow: filteredFlows.length ? filteredFlows : sortedFlows,
+      article: filteredArticles.length ? filteredArticles : sortedArticles
+    };
+    const nextItems = itemsByMode[nextMode] || [];
+    const next = nextItems.find((item) => item.slug === route.slug) || nextItems[0];
     if (next) {
-      openIssue(next.slug);
+      openEntry(nextMode, next.slug);
     }
   };
 
@@ -780,12 +1101,8 @@ export default function App() {
   };
 
   const handleShare = async () => {
-    const activeTitle = mode === 'capsule'
-      ? (activeCapsule?.title || site?.title || 'GameLetter')
-      : (activeIssue?.title || site?.title || 'GameLetter');
-    const activeSummary = mode === 'capsule'
-      ? (activeCapsule?.summary || site?.description || '')
-      : (activeIssue?.summary || site?.description || '');
+    const activeTitle = activeEntry?.title || site?.title || 'GameLetter';
+    const activeSummary = activeEntry?.summary || site?.description || '';
     const shareData = { title: activeTitle, text: activeSummary, url: window.location.href };
 
     try {
@@ -803,9 +1120,21 @@ export default function App() {
   };
 
   const currentSearch = searchByMode[mode];
-  const currentTagCounts = getTagCounts(mode === 'capsule' ? sortedCapsules : sortedIssues);
+  const sortedItemsByMode = {
+    issue: sortedIssues,
+    capsule: sortedCapsules,
+    flow: sortedFlows,
+    article: sortedArticles
+  };
+  const filteredItemsByMode = {
+    issue: filteredIssues,
+    capsule: filteredCapsules,
+    flow: filteredFlows,
+    article: filteredArticles
+  };
+  const currentTagCounts = getTagCounts(sortedItemsByMode[mode] || []);
   const selectedTags = activeTagsByMode[mode];
-  const displayedItems = mode === 'capsule' ? filteredCapsules : filteredIssues;
+  const displayedItems = filteredItemsByMode[mode] || [];
 
   return (
     <div className="app-shell">
@@ -814,10 +1143,13 @@ export default function App() {
       <div className="workspace">
         <aside className="nav-column">
           <section className="card nav-card">
-            <nav className={`mode-tabs ${mode === 'capsule' ? 'capsule-active' : 'issue-active'}`} aria-label="浏览模式切换">
+            <nav className={`mode-tabs ${mode}-active`} aria-label="浏览模式切换">
               <span className="mode-tab-indicator" aria-hidden="true" />
-              <button type="button" className={`mode-tab ${mode === 'capsule' ? 'active' : ''}`} onClick={() => switchMode('capsule')}>Capsule</button>
-              <button type="button" className={`mode-tab ${mode === 'issue' ? 'active' : ''}`} onClick={() => switchMode('issue')}>Issue</button>
+              {modeOrder.map((item) => (
+                <button key={item} type="button" className={`mode-tab ${mode === item ? 'active' : ''}`} onClick={() => switchMode(item)}>
+                  {modeMeta[item].label}
+                </button>
+              ))}
             </nav>
           </section>
         </aside>
@@ -828,10 +1160,10 @@ export default function App() {
             {error ? <div className="empty-card"><h3>加载失败</h3><p className="hint">{error}</p></div> : null}
 
             {!loading && !error ? (
-              <div className={mode === 'capsule' ? 'capsule-list' : 'issue-list'}>
-                {displayedItems.length ? displayedItems.map((item) => (
-                  mode === 'capsule'
-                    ? (
+              <div className={modeMeta[mode].className}>
+                {displayedItems.length ? displayedItems.map((item) => {
+                  if (mode === 'capsule') {
+                    return (
                       <BrowseCapsuleCard
                         key={item.id}
                         capsule={item}
@@ -840,21 +1172,49 @@ export default function App() {
                         onToggleTag={(tag) => toggleTag('capsule', tag)}
                         activeTags={activeTagsByMode.capsule}
                       />
-                    )
-                    : (
-                      <BrowseIssueCard
+                    );
+                  }
+                  if (mode === 'flow') {
+                    return (
+                      <BrowseFlowCard
                         key={item.id}
-                        issue={item}
-                        active={activeIssue?.id === item.id}
-                        onOpenIssue={openIssue}
+                        flow={item}
+                        onOpenFlow={openFlow}
+                        onToggleTag={(tag) => toggleTag('flow', tag)}
+                        activeTags={activeTagsByMode.flow}
+                      />
+                    );
+                  }
+                  if (mode === 'article') {
+                    return (
+                      <BrowseArticleCard
+                        key={item.id}
+                        article={item}
+                        active={activeArticle?.id === item.id}
+                        columnTitle={columnsById.get(item.columnId)?.title || ''}
+                        onOpenArticle={openArticle}
                         onOpenCapsule={openCapsule}
                         onImageClick={setLightboxImage}
-                        onToggleTag={(tag) => toggleTag('issue', tag)}
-                        activeTags={activeTagsByMode.issue}
+                        onToggleTag={(tag) => toggleTag('article', tag)}
+                        activeTags={activeTagsByMode.article}
                         capsulesById={capsulesById}
                       />
-                    )
-                )) : <div className="empty-card"><h3>没有可展示内容</h3><p className="hint">试试清空搜索或标签筛选。</p></div>}
+                    );
+                  }
+                  return (
+                    <BrowseIssueCard
+                      key={item.id}
+                      issue={item}
+                      active={activeIssue?.id === item.id}
+                      onOpenIssue={openIssue}
+                      onOpenCapsule={openCapsule}
+                      onImageClick={setLightboxImage}
+                      onToggleTag={(tag) => toggleTag('issue', tag)}
+                      activeTags={activeTagsByMode.issue}
+                      capsulesById={capsulesById}
+                    />
+                  );
+                }) : <div className="empty-card"><h3>没有可展示内容</h3><p className="hint">试试清空搜索或标签筛选。</p></div>}
               </div>
             ) : null}
           </section>
@@ -867,7 +1227,7 @@ export default function App() {
               type="text"
               value={currentSearch}
               onChange={(event) => setSearchByMode((prev) => ({ ...prev, [mode]: event.target.value }))}
-              placeholder={`搜索${mode === 'capsule' ? ' Capsule' : ' Issue'}`}
+              placeholder={`搜索 ${modeMeta[mode].label}`}
             />
             <div className={`filter-head ${selectedTags.length ? '' : 'filter-head-compact'}`}>
               {selectedTags.length ? (

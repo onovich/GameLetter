@@ -10,12 +10,13 @@ GameLetter/
 │  ├─ data.json             # 简报数据源
 │  └─ rss.xml               # 构建生成
 ├─ scripts/                 # 构建辅助脚本
+├─ studio/                  # Prompt CMS 本地编辑工作台
 ├─ src/
-│  ├─ components/           # 业务组件
+│  ├─ components/           # 浏览态复用组件
 │  ├─ hooks/                # 数据加载等复用逻辑
-│  ├─ App.jsx               # 页面入口
+│  ├─ App.jsx               # 浏览态页面入口
 │  ├─ main.jsx              # 挂载入口
-│  └─ styles.css            # 全局样式
+│  └─ browse.css            # 浏览态补充样式
 ├─ index.html
 ├─ package.json
 └─ vite.config.js
@@ -23,7 +24,7 @@ GameLetter/
 
 ## 数据模型
 
-当前项目已演进为 `Capsule + Issue` 双模型。
+当前项目已演进为 `Capsule + Issue + Flow + Article` 四类内容模型，并用 `Column` 承载长文栏目归属。
 
 `public/data.json` 建议采用以下结构：
 
@@ -37,9 +38,11 @@ GameLetter/
     "baseUrl": "https://onovich.github.io/GameLetter/"
   },
   "features": {
-    "rssForIssuesOnly": true,
-    "homepageShowsIssuesOnly": true,
-    "searchScopes": ["all", "issues", "capsules"]
+    "rssForIssuesOnly": false,
+    "homepageShowsIssuesOnly": false,
+    "rssSources": ["issues", "articles"],
+    "homepageShows": ["issues", "articles"],
+    "searchScopes": ["all", "issues", "capsules", "flows", "articles"]
   },
   "capsules": [
     {
@@ -57,8 +60,10 @@ GameLetter/
         "rss": false
       },
       "payload": {
-        "type": "link",
-        "url": "https://example.com"
+        "type": "canvas",
+        "entry": "/canvases/demo/index.html",
+        "aspectRatio": "16 / 9",
+        "allowFullscreen": true
       }
     }
   ],
@@ -77,17 +82,61 @@ GameLetter/
         }
       ]
     }
+  ],
+  "flows": [
+    {
+      "id": "flow-20260609-01",
+      "slug": "plain-text-note",
+      "kind": "flow",
+      "title": "碎碎念",
+      "body": "纯文本内容",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": false,
+        "feed": false,
+        "rss": false
+      }
+    }
+  ],
+  "columns": [
+    {
+      "id": "game-interface-notes",
+      "slug": "game-interface-notes",
+      "title": "游戏界面笔记"
+    }
+  ],
+  "articles": [
+    {
+      "id": "article-20260609-01",
+      "slug": "article-slug",
+      "kind": "article",
+      "columnId": "game-interface-notes",
+      "title": "长文标题",
+      "summary": "长文摘要",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "长文段落"
+        },
+        {
+          "type": "canvas-ref",
+          "capsuleId": "capsule-20260422-01"
+        }
+      ]
+    }
   ]
 }
 ```
 
 ## 分层原则
 
-- 数据层：维护 `capsules` 与 `issues` 两个集合
+- 数据层：维护 `capsules`、`issues`、`flows`、`articles` 与 `columns` 集合
 - 展示层：浏览模式和编辑模式都围绕同一批内容实体与 block 类型工作
 - 页面层：`src/App.jsx` 负责浏览态三栏结构、hash 路由、搜索、标签过滤与只读内容编排
 - 编辑层：`studio/app.js` 负责编辑态三栏结构、block 编辑、slash 插入、待处理状态与本地样式系统
-- 构建层：`scripts/generate-rss.mjs` 仅从 `issues` 生成 RSS
+- 样式层：`studio/app.css` 提供编辑态与浏览态共享视觉基线，`src/browse.css` 只补充浏览态专属样式
+- 构建层：`scripts/generate-rss.mjs` 从 `issues` 与开启 RSS 的 `articles` 生成 RSS
 - 部署层：`.github/workflows/deploy.yml` 负责发布 Pages
 
 ## 双界面架构
@@ -118,13 +167,17 @@ GameLetter/
 - `text`
 - `image`
 - `link`
+- `canvas`
 - `note`
 - `capsule-ref`
+- `canvas-ref`
 
 其中：
 
-- `Capsule` 侧主要消费 `text / image / link`
+- `Capsule` 侧主要消费 `text / image / link / canvas`
 - `Issue` 侧主要消费 `note / capsule-ref / link / image`
+- `Article` 侧主要消费 `paragraph / heading / quote / capsule-ref / canvas-ref`
+- `Flow` 侧保持纯文本，不进入 block 编排
 
 ## 运行时安全约束
 

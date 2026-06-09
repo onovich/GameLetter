@@ -10,10 +10,12 @@
 - `workbench/archive/`：已经发布的原始稿件归档
 - `public/data.json`：正式线上内容源
 
-## 现在的内容发布目标分为两类
+## 现在的内容发布目标
 
 - `Capsule`：可独立访问、可被搜索命中、默认不进首页 / RSS 的内容胶囊
 - `Issue`：由多个 Capsule 与若干 note 编排而成的正式发布单元
+- `Flow`：纯文本碎碎念，默认不进首页 / RSS
+- `Article`：长文专栏文章，可归属 Column，可进入首页 / RSS
 
 ## 推荐操作流程
 
@@ -29,9 +31,9 @@
 
 这份 `.md` 文件既可以是：
 
-- 新增 Capsule / Issue
-- 编辑已存在 Capsule / Issue
-- 删除已存在 Capsule / Issue
+- 新增 Capsule / Issue / Flow / Article
+- 编辑已存在 Capsule / Issue / Flow / Article
+- 删除已存在 Capsule / Issue / Flow / Article
 
 ### 阶段 B：触发短命令
 
@@ -43,20 +45,20 @@
 
 - 读取 inbox 中最新或选中的操作单
 - 识别 action：create / update / delete
-- 识别 kind：Capsule / Issue
+- 识别 kind：Capsule / Issue / Flow / Article
 - 生成内置 prompt 并交给 Copilot
 
 ### 阶段 C：AI 结构化
 
 Copilot 负责：
 
-- 判断这次稿件更适合成为 `Capsule` 还是 `Issue`
+- 判断这次稿件更适合成为 `Capsule`、`Issue`、`Flow` 还是 `Article`
 - 判断这次操作是新增、编辑还是删除
 - 提取标题
 - 生成摘要
 - 按发布时间生成 `id`
 - 生成 `slug`
-- 识别链接、短评、图片内容
+- 识别链接、短评、图片、Canvas 与长文段落内容
 - 输出 tags 候选清单
 
 这里保留一个人工确认步骤：
@@ -83,7 +85,7 @@ npm run dev
 - 编辑模式根页能正常渲染
 - 本地 `/browse/` 路由能正常渲染
 - 正式浏览页的构建产物能正常渲染
-- Issue / Capsule / 图片 / 链接块在浏览态可正确显示
+- Issue / Capsule / Flow / Article / Canvas / 图片 / 链接块在浏览态可正确显示
 - 本地专用按钮不泄漏到线上正式浏览体验
 
 推荐本地至少覆盖：

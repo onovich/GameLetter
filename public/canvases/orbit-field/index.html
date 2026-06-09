@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit Canvas Prototype</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #07111f;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .hud {
+        position: fixed;
+        left: 18px;
+        top: 16px;
+        display: grid;
+        gap: 4px;
+        color: rgba(226, 242, 255, 0.9);
+        pointer-events: none;
+      }
+
+      .hud strong {
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .hud span {
+        color: rgba(191, 219, 254, 0.72);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div class="hud">
+      <strong>Orbit Field</strong>
+      <span>interactive canvas capsule</span>
+    </div>
+    <script>
+      const canvas = document.getElementById('scene');
+      const ctx = canvas.getContext('2d');
+      const pointer = { x: 0.5, y: 0.5, active: false };
+      const particles = Array.from({ length: 72 }, (_, index) => ({
+        angle: (index / 72) * Math.PI * 2,
+        radius: 42 + (index % 12) * 14,
+        speed: 0.0028 + (index % 9) * 0.00045,
+        size: 1.5 + (index % 5) * 0.55,
+        hue: 190 + (index % 28) * 4
+      }));
+
+      function resize() {
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(window.innerWidth * ratio);
+        canvas.height = Math.floor(window.innerHeight * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+
+      function updatePointer(event) {
+        pointer.x = event.clientX / window.innerWidth;
+        pointer.y = event.clientY / window.innerHeight;
+        pointer.active = true;
+      }
+
+      function draw(time) {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const centerX = width * (0.46 + (pointer.x - 0.5) * 0.16);
+        const centerY = height * (0.52 + (pointer.y - 0.5) * 0.18);
+        const scale = Math.min(width, height) / 540;
+
+        ctx.clearRect(0, 0, width, height);
+
+        const bg = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(width, height) * 0.72);
+        bg.addColorStop(0, '#123456');
+        bg.addColorStop(0.42, '#071d33');
+        bg.addColorStop(1, '#050914');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.strokeStyle = 'rgba(148, 197, 255, 0.12)';
+        ctx.lineWidth = 1;
+
+        for (let ring = 0; ring < 5; ring += 1) {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, (70 + ring * 42) * scale, (42 + ring * 26) * scale, -0.22, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        particles.forEach((particle, index) => {
+          const drift = time * particle.speed;
+          const wave = Math.sin(time * 0.0012 + index) * 10 * scale;
+          const x = Math.cos(particle.angle + drift) * (particle.radius * scale + wave);
+          const y = Math.sin(particle.angle + drift * 1.28) * (particle.radius * 0.62 * scale + wave * 0.4);
+          const glow = ctx.createRadialGradient(x, y, 0, x, y, particle.size * 9 * scale);
+          glow.addColorStop(0, `hsla(${particle.hue}, 94%, 72%, 0.9)`);
+          glow.addColorStop(0.42, `hsla(${particle.hue}, 94%, 62%, 0.22)`);
+          glow.addColorStop(1, `hsla(${particle.hue}, 94%, 48%, 0)`);
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(x, y, particle.size * 9 * scale, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = `hsla(${particle.hue}, 96%, 82%, 0.86)`;
+          ctx.beginPath();
+          ctx.arc(x, y, particle.size * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+        requestAnimationFrame(draw);
+      }
+
+      window.addEventListener('resize', resize);
+      window.addEventListener('pointermove', updatePointer);
+      window.addEventListener('pointerdown', updatePointer);
+      resize();
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>

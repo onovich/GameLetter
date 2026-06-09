@@ -17,20 +17,26 @@ const escapeXml = (value = '') =>
 const main = async () => {
   const raw = await fs.readFile(dataPath, 'utf8');
   const data = JSON.parse(raw);
-  const { site, issues = [] } = data;
+  const { site, issues = [], articles = [] } = data;
   const siteUrl = site?.baseUrl || fallbackSiteUrl;
 
-  const items = issues
-    .filter((issue) => issue.visibility?.rss !== false)
-    .map((issue) => {
-      const issueUrl = `${siteUrl}#/issues/${issue.slug || issue.id}`;
+  const entries = [
+    ...issues.map((entry) => ({ ...entry, route: 'issues' })),
+    ...articles.map((entry) => ({ ...entry, route: 'articles' }))
+  ];
+
+  const items = entries
+    .filter((entry) => entry.visibility?.rss !== false)
+    .sort((left, right) => new Date(right.publishedAt || right.id) - new Date(left.publishedAt || left.id))
+    .map((entry) => {
+      const entryUrl = `${siteUrl}#/${entry.route}/${entry.slug || entry.id}`;
       return `
     <item>
-      <title>${escapeXml(issue.title)}</title>
-      <description>${escapeXml(issue.summary)}</description>
-      <link>${issueUrl}</link>
-      <guid>${issueUrl}</guid>
-      <pubDate>${new Date(issue.publishedAt || issue.id).toUTCString()}</pubDate>
+      <title>${escapeXml(entry.title)}</title>
+      <description>${escapeXml(entry.summary)}</description>
+      <link>${entryUrl}</link>
+      <guid>${entryUrl}</guid>
+      <pubDate>${new Date(entry.publishedAt || entry.id).toUTCString()}</pubDate>
     </item>`;
     })
     .join('');

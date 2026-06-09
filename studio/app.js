@@ -1,4 +1,4 @@
-﻿const PAGE_SIZE = 20;
+const PAGE_SIZE = 20;
 const SETTINGS_STORAGE_KEY = 'prompt-cms-style-settings';
 const SETTINGS_DEFAULT_STORAGE_KEY = 'prompt-cms-style-default-settings';
 

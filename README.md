@@ -9,7 +9,14 @@ GameLetter 是一个基于 GitHub 维护的静态 newsletter / daily brief 项�
 
 ## 当前状态
 
-当前仓库已经从单文件原型重构为更清晰的前端项目骨架，后续只需要围绕 `public/data.json` 维护内容即可。
+当前仓库已经从单文件原型重构为更清晰的前端项目骨架，内容围绕 `public/data.json` 维护。
+
+当前核心内容模型包括：
+
+- `Capsule`：最小内容胶囊，支持链接、图片、观点和可交互 Canvas
+- `Issue`：正式 newsletter / digest，一期编排内容
+- `Flow`：纯文本碎碎念，默认不进 RSS
+- `Article`：长文专栏文章，可归属 `Column`
 
 ## 内容工作台
 
@@ -72,7 +79,7 @@ npm run cms
 
 本轮迭代后，建议把 Prompt CMS 看成“三件事的组合”：
 
-- 编辑器：负责编辑 Capsule / Issue
+- 编辑器：负责编辑 Capsule / Issue，后续扩展到 Flow / Article
 - 操作单生成器：负责把编辑意图落到 inbox
 - prompt 预处理器：负责把待执行意图整理给 Copilot
 
@@ -91,7 +98,7 @@ npm run cms
 npm run build
 ```
 
-构建前会自动执行 RSS 生成脚本。
+构建前会自动执行 RSS 生成脚本。RSS 当前收录 `Issue` 与开启 `rss` 可见性的 `Article`，不收录 `Flow`。
 
 ## Giscus 本地配置
 
