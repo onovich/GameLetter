@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "npm run validate:data && npm run generate:rss && vite build",
     "validate:data": "node scripts/validate-data.mjs",
+    "smoke:local": "npm run build && node scripts/smoke-local.mjs",
     "preview": "vite preview",
     "generate:rss": "node scripts/generate-rss.mjs",
     "cms": "node scripts/prompt-cms-server.mjs"
