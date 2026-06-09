@@ -188,6 +188,7 @@ const state = {
     variant: '',
     query: '',
     selectedCanvasId: '',
+    preview: null,
     resolve: null
   },
   settings: loadStoredSettings(),
@@ -477,6 +478,31 @@ function renderCommandDialog() {
     return;
   }
 
+  if (state.commandDialog.variant === 'publish-preview') {
+    const preview = state.commandDialog.preview || {};
+    const afterJson = preview.afterItem ? JSON.stringify(preview.afterItem, null, 2) : '';
+    const beforeJson = preview.beforeItem ? JSON.stringify(preview.beforeItem, null, 2) : '';
+    const statusClass = preview.valid ? 'published' : 'pendingDelete';
+    elements.commandDialogBody.innerHTML = `
+      <div class="publish-preview">
+        <div class="publish-preview-summary">
+          <span class="status-pill ${statusClass}">${preview.valid ? '可发布' : '需修正'}</span>
+          <strong>${escapeHtml(preview.kind || '')} / ${escapeHtml(preview.action || '')}</strong>
+          <span>${escapeHtml(preview.summary?.collection || '')}: ${preview.summary?.beforeCount ?? 0} → ${preview.summary?.afterCount ?? 0}</span>
+        </div>
+        ${preview.errors?.length ? `<div class="publish-preview-list error"><strong>Errors</strong>${preview.errors.map((item) => `<p>${escapeHtml(item)}</p>`).join('')}</div>` : ''}
+        ${preview.warnings?.length ? `<div class="publish-preview-list warning"><strong>Warnings</strong>${preview.warnings.map((item) => `<p>${escapeHtml(item)}</p>`).join('')}</div>` : ''}
+        ${preview.infos?.length ? `<div class="publish-preview-list"><strong>Info</strong>${preview.infos.map((item) => `<p>${escapeHtml(item)}</p>`).join('')}</div>` : ''}
+        ${beforeJson ? `<label class="publish-preview-json"><span>Before</span><textarea readonly>${escapeHtml(beforeJson)}</textarea></label>` : ''}
+        ${afterJson ? `<label class="publish-preview-json"><span>After</span><textarea readonly>${escapeHtml(afterJson)}</textarea></label>` : ''}
+        <div class="editor-actions">
+          <button type="button" data-action="draft-publish" data-file-name="${escapeHtml(preview.fileName || '')}" ${preview.valid ? '' : 'disabled'}>应用发布</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   elements.commandDialogBody.innerHTML = state.commandDialog.fields.map((field) => `
     <div class="action-dialog-field">
       <label for="command-field-${field.key}">${escapeHtml(field.label)}</label>
@@ -498,6 +524,7 @@ function openCommandDialog({ title = '插入内容', fields = [] } = {}) {
       variant: '',
       query: '',
       selectedCanvasId: '',
+      preview: null,
       resolve
     };
     renderCommandDialog();
@@ -513,10 +540,25 @@ function openCanvasPickerDialog(initialQuery = '') {
       variant: 'canvas-picker',
       query: initialQuery,
       selectedCanvasId: '',
+      preview: null,
       resolve
     };
     renderCommandDialog();
   });
+}
+
+function openPublishPreviewDialog(preview) {
+  state.commandDialog = {
+    open: true,
+    title: '发布预览',
+    fields: [],
+    variant: 'publish-preview',
+    query: '',
+    selectedCanvasId: '',
+    preview,
+    resolve: null
+  };
+  renderCommandDialog();
 }
 
 function closeCommandDialog(result = null) {
@@ -528,6 +570,7 @@ function closeCommandDialog(result = null) {
     variant: '',
     query: '',
     selectedCanvasId: '',
+    preview: null,
     resolve: null
   };
   renderCommandDialog();
@@ -2535,6 +2578,47 @@ async function refreshInbox() {
   state.inboxFiles = result.files.map(normalizeInboxFile);
 }
 
+async function refreshDataSource() {
+  state.dataSource = await requestJson('/api/data-source');
+}
+
+async function previewDraftPublish(fileName) {
+  if (!fileName) {
+    return;
+  }
+  const preview = await requestJson('/api/publish/preview', {
+    method: 'POST',
+    body: JSON.stringify({ fileName })
+  });
+  openPublishPreviewDialog(preview);
+}
+
+async function applyDraftPublish(fileName) {
+  if (!fileName) {
+    return;
+  }
+  const result = await requestJson('/api/publish/apply', {
+    method: 'POST',
+    body: JSON.stringify({ fileName })
+  });
+  closeCommandDialog(null);
+  await refreshDataSource();
+  await refreshInbox();
+  renderWorkspace();
+  showToast(`已发布 ${result.kind}：${result.itemId}`);
+}
+
+async function undoLatestPublishFromCms() {
+  const result = await requestJson('/api/publish/undo', {
+    method: 'POST',
+    body: JSON.stringify({})
+  });
+  await refreshDataSource();
+  await refreshInbox();
+  renderWorkspace();
+  showToast(`已撤销发布：${result.restoredFileName || result.undoFileName}`);
+}
+
 async function saveTask({ kind, action, target = 'auto', title = '', body, fileName = '', tags = [], createdAt = '', extraFrontmatter = {} }) {
   const finalName = generateAutoFileName(kind, title || body, fileName);
   const stableCreatedAt = createdAt || new Date().toISOString();
@@ -2571,6 +2655,17 @@ async function deleteDraft(fileName) {
 
 function renderStatusPill(status) {
   return `<span class="status-pill ${status}">${getStatusLabel(status)}</span>`;
+}
+
+function renderDraftPublishTools(item) {
+  if (!item?.fileName || item.status === 'published') {
+    return '';
+  }
+  const publishLabel = item.status === 'pendingDelete' ? '确认删除' : '发布';
+  return `
+    <button class="ghost small compact-tool" data-action="draft-preview" data-file-name="${escapeHtml(item.fileName)}">预览发布</button>
+    <button class="small compact-tool" data-action="draft-publish" data-file-name="${escapeHtml(item.fileName)}">${publishLabel}</button>
+  `;
 }
 
 function renderCapsuleDisplayBlocks(blocks, expanded = false) {
@@ -2714,6 +2809,7 @@ function renderCapsuleCard(item) {
         <div class="card-bottom-row">
           <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${state.ui.capsule.activeTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="capsule-filter-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
           <div class="card-tools">
+            ${renderDraftPublishTools(item)}
             ${blocks.some((block) => block.type === 'text' && capsuleNeedsCollapse(block.text || '')) ? `<button class="ghost small compact-tool" data-action="capsule-toggle-expand" data-key="${item.key}">${expanded ? '收起' : '展开'}</button>` : ''}
             ${item.status !== 'pendingDelete' ? `<button class="ghost small icon-button compact-tool" data-action="capsule-edit" data-key="${item.key}" aria-label="编辑 Capsule">✎</button>` : ''}
             <button class="ghost small icon-button compact-tool danger" data-action="capsule-delete" data-key="${item.key}" aria-label="删除 Capsule">${item.status === 'pendingDelete' ? '↺' : '🗑'}</button>
@@ -2912,6 +3008,7 @@ function renderIssueCard(item) {
         <div class="card-bottom-row">
           <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${state.ui.issue.activeTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="issue-filter-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
           <div class="card-tools">
+            ${renderDraftPublishTools(item)}
             ${item.status !== 'pendingDelete' ? `<button class="ghost small icon-button compact-tool" data-action="issue-load" data-key="${item.key}" aria-label="编辑 Issue">✎</button>` : ''}
             <button class="ghost small icon-button compact-tool danger" data-action="issue-delete" data-key="${item.key}" aria-label="删除 Issue">${item.status === 'pendingDelete' ? '↺' : '🗑'}</button>
           </div>
@@ -3060,6 +3157,7 @@ function renderPlainModeCard(kind, item) {
         <div class="card-bottom-row">
           <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${(state.ui[kind]?.activeTags || []).some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="plain-filter-tag" data-kind="${kind}" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
           <div class="card-tools">
+            ${renderDraftPublishTools(item)}
             ${item.status !== 'pendingDelete' ? `<button class="ghost small icon-button compact-tool" data-action="plain-edit" data-kind="${kind}" data-key="${escapeHtml(item.key)}" aria-label="编辑 ${escapeHtml(config.title)}">✎</button>` : ''}
             <button class="ghost small icon-button compact-tool danger" data-action="plain-delete" data-kind="${kind}" data-key="${escapeHtml(item.key)}" aria-label="删除 ${escapeHtml(config.title)}">${item.status === 'pendingDelete' ? '↺' : '🗑'}</button>
           </div>
@@ -3534,6 +3632,7 @@ function handleClick(event) {
   }
   const key = actionTarget.dataset.key;
   const kind = actionTarget.dataset.kind || state.mode;
+  const fileName = actionTarget.dataset.fileName || '';
   const page = Number(actionTarget.dataset.page || '1');
 
   switch (action) {
@@ -3549,6 +3648,9 @@ function handleClick(event) {
       break;
     case 'preview-open':
       window.location.href = '/browse/';
+      break;
+    case 'publish-undo':
+      undoLatestPublishFromCms().catch((error) => showToast(error.message, 'error'));
       break;
     case 'image-open-lightbox':
       openLightbox(actionTarget.dataset.url || '', actionTarget.dataset.caption || '');
@@ -3567,6 +3669,12 @@ function handleClick(event) {
       closeCommandDialog(selected || null);
       break;
     }
+    case 'draft-preview':
+      previewDraftPublish(fileName).catch((error) => showToast(error.message, 'error'));
+      break;
+    case 'draft-publish':
+      applyDraftPublish(fileName).catch((error) => showToast(error.message, 'error'));
+      break;
     case 'capsule-publish':
       publishCapsuleFromComposer().catch((error) => showToast(error.message, 'error'));
       break;
@@ -3939,8 +4047,7 @@ async function bootstrap() {
   setSettingsPanelOpen(false);
   state.ui.issue.editor = createEmptyIssueEditor();
   state.ui.capsule.composerBlocks = [createTextBlock('')];
-  const data = await requestJson('/api/data-source');
-  state.dataSource = data;
+  await refreshDataSource();
   await refreshInbox();
   renderWorkspace();
 }

@@ -1,6 +1,8 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,8 +13,26 @@ const distDir = path.join(rootDir, 'dist');
 const inboxDir = path.join(rootDir, 'workbench', 'inbox');
 const archiveDir = path.join(rootDir, 'workbench', 'archive');
 const pendingDir = path.join(rootDir, 'workbench', 'pending');
+const publishUndoDir = path.join(archiveDir, 'publish-undo');
 const dataPath = path.join(rootDir, 'public', 'data.json');
 const port = Number(process.env.PROMPT_CMS_PORT || 4318);
+const execFileAsync = promisify(execFile);
+
+const collectionByKind = {
+  capsule: 'capsules',
+  issue: 'issues',
+  flow: 'flows',
+  article: 'articles',
+  canvas: 'canvases'
+};
+
+const defaultVisibilityByKind = {
+  capsule: { direct: true, search: true, homepage: false, feed: false, rss: false },
+  canvas: { direct: true, search: true, homepage: false, feed: false, rss: false },
+  flow: { direct: true, search: true, homepage: false, feed: false, rss: false },
+  issue: { direct: true, search: true, homepage: true, feed: true, rss: true },
+  article: { direct: true, search: true, homepage: true, feed: true, rss: true }
+};
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -50,7 +70,8 @@ async function ensureDirectories() {
   await Promise.all([
     fs.mkdir(inboxDir, { recursive: true }),
     fs.mkdir(archiveDir, { recursive: true }),
-    fs.mkdir(pendingDir, { recursive: true })
+    fs.mkdir(pendingDir, { recursive: true }),
+    fs.mkdir(publishUndoDir, { recursive: true })
   ]);
 }
 
@@ -303,6 +324,486 @@ async function readDataSource() {
   return JSON.parse(raw);
 }
 
+async function regenerateRss() {
+  await execFileAsync(process.execPath, [path.join(rootDir, 'scripts', 'generate-rss.mjs')], { cwd: rootDir });
+}
+
+function stringifyDataJson(value, depth = 0) {
+  const indent = '  '.repeat(depth);
+  const nextIndent = '  '.repeat(depth + 1);
+
+  if (Array.isArray(value)) {
+    if (!value.length) {
+      return '[]';
+    }
+    const isPrimitiveArray = value.every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item));
+    if (isPrimitiveArray && value.length <= 8) {
+      return `[${value.map((item) => JSON.stringify(item)).join(', ')}]`;
+    }
+    return `[\n${value.map((item) => `${nextIndent}${stringifyDataJson(item, depth + 1)}`).join(',\n')}\n${indent}]`;
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value);
+    if (!entries.length) {
+      return '{}';
+    }
+    return `{\n${entries.map(([key, item]) => `${nextIndent}${JSON.stringify(key)}: ${stringifyDataJson(item, depth + 1)}`).join(',\n')}\n${indent}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+async function writeDataSource(data) {
+  await fs.writeFile(dataPath, `${stringifyDataJson(data)}\n`, 'utf8');
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeLineEndings(value = '') {
+  return String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
+function parseTagList(value = '') {
+  return String(value || '')
+    .split(',')
+    .map((tag) => tag.replace(/^#/, '').trim())
+    .filter(Boolean);
+}
+
+function extractInlineTags(value = '') {
+  return [...String(value || '').matchAll(/#([\u4e00-\u9fa5A-Za-z0-9_-]+)/g)]
+    .map((match) => match[1])
+    .filter(Boolean);
+}
+
+function uniqueTags(...groups) {
+  const tags = [];
+  groups.flat().forEach((tag) => {
+    const normalized = String(tag || '').replace(/^#/, '').trim();
+    if (normalized && !tags.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
+      tags.push(normalized);
+    }
+  });
+  return tags;
+}
+
+function slugify(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-+/g, '-') || 'untitled';
+}
+
+function localIsoTimestamp(date = new Date()) {
+  const localDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+  return `${localDate.toISOString().slice(0, 19)}+08:00`;
+}
+
+function getDateStamp(value = '') {
+  const source = String(value || localIsoTimestamp()).slice(0, 10);
+  return source.replace(/-/g, '');
+}
+
+function buildUniqueId(kind, title, publishedAt, collection = []) {
+  const existingIds = new Set(collection.map((item) => item.id).filter(Boolean));
+  const dateStamp = getDateStamp(publishedAt);
+  const slug = slugify(title).slice(0, 48);
+  const baseId = `${kind}-${dateStamp}-${slug}`;
+  let candidate = baseId;
+  let suffix = 2;
+  while (existingIds.has(candidate)) {
+    candidate = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+function defaultVisibility(kind) {
+  return { ...(defaultVisibilityByKind[kind] || defaultVisibilityByKind.capsule) };
+}
+
+function splitContentChunks(body = '') {
+  return normalizeLineEndings(body)
+    .split(/\n{2,}/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+}
+
+function parseStructuredFields(lines = []) {
+  const fields = {};
+  const rest = [];
+  lines.forEach((line) => {
+    const match = line.match(/^([A-Za-z][\w-]*)\s*:\s*(.*)$/);
+    if (match) {
+      fields[match[1]] = match[2].trim();
+    } else if (line.trim()) {
+      rest.push(line.trim());
+    }
+  });
+  return { fields, rest };
+}
+
+function parseStructuredChunk(chunk = '') {
+  const lines = normalizeLineEndings(chunk).split('\n').map((line) => line.trim()).filter(Boolean);
+  const marker = lines[0] || '';
+  const { fields, rest } = parseStructuredFields(lines.slice(1));
+  return { marker, fields, rest, raw: chunk.trim() };
+}
+
+function isWebUrl(value = '') {
+  return /^https?:\/\//i.test(String(value || '').trim());
+}
+
+function isImageUrl(value = '') {
+  return /\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(String(value || '').trim());
+}
+
+function capsulePayloadFromBody(body = '', operation = {}) {
+  const chunks = splitContentChunks(body);
+  const structured = chunks.map(parseStructuredChunk);
+  const first = structured[0];
+  const textChunks = chunks.filter((chunk) => {
+    const marker = parseStructuredChunk(chunk).marker;
+    return !['[Image]', '[图片]', '[Link]', '[链接]', '[Canvas]'].includes(marker);
+  });
+  const commentary = textChunks.join('\n\n').trim();
+
+  if (first?.marker === '[Image]' || first?.marker === '[图片]') {
+    return {
+      type: 'image',
+      url: first.fields.url || first.fields.src || '',
+      caption: first.fields.caption || operation.title || '',
+      commentary
+    };
+  }
+
+  if (first?.marker === '[Link]' || first?.marker === '[链接]') {
+    return {
+      type: 'link',
+      text: first.fields.text || first.fields.title || first.fields.url || '',
+      url: first.fields.url || '',
+      image: first.fields.image || '',
+      commentary
+    };
+  }
+
+  if (first?.marker === '[Canvas]') {
+    return {
+      type: 'canvas',
+      canvasId: first.fields.canvasId || first.fields.id || '',
+      entry: first.fields.entry || first.fields.src || first.fields.url || '',
+      aspectRatio: first.fields.aspectRatio || '16 / 9',
+      allowFullscreen: first.fields.allowFullscreen !== 'false',
+      caption: first.fields.caption || first.fields.summary || commentary
+    };
+  }
+
+  const firstText = chunks[0] || '';
+  if (isImageUrl(firstText)) {
+    return { type: 'image', url: firstText, caption: operation.title || '', commentary };
+  }
+  if (isWebUrl(firstText)) {
+    return { type: 'link', text: operation.title || firstText, url: firstText, commentary };
+  }
+  return { type: 'thought', content: body.trim(), author: operation.frontmatter?.author || 'Editor' };
+}
+
+function blockFromChunk(chunk = '', target = 'issue') {
+  const { marker, fields, raw } = parseStructuredChunk(chunk);
+
+  if (marker === '[引用 Capsule]' || marker === '[Capsule]' || marker === '[引用 capsule]') {
+    const capsuleId = fields.capsuleId || fields.id || '';
+    return capsuleId ? { type: 'capsule-ref', capsuleId } : { type: target === 'article' ? 'paragraph' : 'note', content: raw };
+  }
+
+  if (marker === '[引用 Canvas]' || marker === '[Canvas Ref]') {
+    const capsuleId = fields.capsuleId || fields.id || '';
+    const canvasId = fields.canvasId || '';
+    return capsuleId
+      ? { type: 'canvas-ref', capsuleId }
+      : { type: 'canvas-ref', canvasId };
+  }
+
+  if (marker === '[Heading]' || marker === '[标题]') {
+    return { type: 'heading', content: fields.text || fields.title || raw.replace(marker, '').trim() };
+  }
+
+  if (marker === '[Quote]' || marker === '[引用]') {
+    return { type: 'quote', content: fields.text || fields.content || raw.replace(marker, '').trim() };
+  }
+
+  if (marker === '[Link]' || marker === '[链接]') {
+    return { type: 'link', text: fields.text || fields.title || fields.url || '', url: fields.url || '' };
+  }
+
+  if (marker === '[Image]' || marker === '[图片]') {
+    return { type: 'image', url: fields.url || fields.src || '', caption: fields.caption || '' };
+  }
+
+  return { type: target === 'article' ? 'paragraph' : 'note', content: raw };
+}
+
+function blocksFromBody(body = '', target = 'issue') {
+  return splitContentChunks(body)
+    .map((chunk) => blockFromChunk(chunk, target))
+    .filter((block) => {
+      if (block.type === 'capsule-ref') {
+        return Boolean(block.capsuleId);
+      }
+      if (block.type === 'canvas-ref') {
+        return Boolean(block.capsuleId || block.canvasId);
+      }
+      return Boolean(String(block.content || block.text || block.url || '').trim());
+    });
+}
+
+function summaryFromBlocks(blocks = []) {
+  return blocks
+    .map((block) => block.content || block.text || block.capsuleId || block.canvasId || '')
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
+function buildEntryFromOperation(operation, data, existingItem = null) {
+  const kind = operation.kind;
+  const collectionName = collectionByKind[kind];
+  const collection = data[collectionName] || [];
+  const frontmatter = operation.frontmatter || {};
+  const body = operation.body || '';
+  const publishedAt = frontmatter.publishedAt || frontmatter.createdAt || operation.frontmatter?.createdAt || localIsoTimestamp();
+  const title = frontmatter.title || operation.title || inferTitle(body, operation.fileName, frontmatter);
+  const tags = uniqueTags(parseTagList(frontmatter.tags || ''), extractInlineTags(body), existingItem?.tags || []);
+  const id = operation.target && operation.target !== 'auto'
+    ? operation.target
+    : (frontmatter.id || buildUniqueId(kind, title, publishedAt, collection));
+  const base = {
+    ...(existingItem || {}),
+    id,
+    slug: frontmatter.slug || existingItem?.slug || slugify(title),
+    kind,
+    title,
+    summary: frontmatter.summary || operation.summary || createSummary(body),
+    tags,
+    publishedAt: existingItem?.publishedAt || publishedAt,
+    visibility: {
+      ...defaultVisibility(kind),
+      ...(existingItem?.visibility || {})
+    }
+  };
+
+  if (kind === 'capsule') {
+    return {
+      ...base,
+      payload: capsulePayloadFromBody(body, operation)
+    };
+  }
+
+  if (kind === 'issue') {
+    const blocks = blocksFromBody(body, 'issue');
+    return {
+      ...base,
+      summary: frontmatter.summary || summaryFromBlocks(blocks) || createSummary(body),
+      blocks
+    };
+  }
+
+  if (kind === 'flow') {
+    return {
+      ...base,
+      body
+    };
+  }
+
+  if (kind === 'article') {
+    const blocks = blocksFromBody(body, 'article');
+    return {
+      ...base,
+      columnId: frontmatter.columnId || existingItem?.columnId || '',
+      summary: frontmatter.summary || summaryFromBlocks(blocks) || createSummary(body),
+      blocks
+    };
+  }
+
+  if (kind === 'canvas') {
+    return {
+      ...base,
+      entry: frontmatter.entry || existingItem?.entry || '',
+      aspectRatio: frontmatter.aspectRatio || existingItem?.aspectRatio || '16 / 9',
+      allowFullscreen: frontmatter.allowFullscreen !== 'false'
+    };
+  }
+
+  return base;
+}
+
+function applyEntryToData(data, operation) {
+  const collectionName = collectionByKind[operation.kind];
+  if (!collectionName) {
+    throw new Error(`Unsupported publish kind: ${operation.kind}`);
+  }
+  const nextData = cloneJson(data);
+  const collection = Array.isArray(nextData[collectionName]) ? [...nextData[collectionName]] : [];
+  const target = operation.target && operation.target !== 'auto' ? operation.target : '';
+  const targetIndex = target ? collection.findIndex((item) => item.id === target) : -1;
+  const beforeItem = targetIndex >= 0 ? collection[targetIndex] : null;
+
+  if (operation.action === 'delete') {
+    if (targetIndex === -1) {
+      throw new Error(`Cannot delete missing ${operation.kind}: ${target || 'auto'}`);
+    }
+    collection.splice(targetIndex, 1);
+    nextData[collectionName] = collection;
+    return { nextData, beforeItem, afterItem: null, itemId: target };
+  }
+
+  const afterItem = buildEntryFromOperation(operation, nextData, beforeItem);
+  if (targetIndex >= 0) {
+    collection[targetIndex] = afterItem;
+  } else {
+    collection.unshift(afterItem);
+  }
+  nextData[collectionName] = collection;
+  return { nextData, beforeItem, afterItem, itemId: afterItem.id };
+}
+
+function buildPublishSummary(beforeData, afterData, collectionName) {
+  const beforeCollection = beforeData[collectionName] || [];
+  const afterCollection = afterData[collectionName] || [];
+  return {
+    collection: collectionName,
+    beforeCount: beforeCollection.length,
+    afterCount: afterCollection.length,
+    delta: afterCollection.length - beforeCollection.length
+  };
+}
+
+async function previewPublishOperation(fileName) {
+  const operation = await getInboxFile(fileName);
+  const validation = await validateOperation(fileName);
+  const data = await readDataSource();
+  const collectionName = collectionByKind[operation.kind];
+  if (!collectionName) {
+    throw new Error(`Unsupported publish kind: ${operation.kind}`);
+  }
+  if (!['create', 'update', 'delete', 'publish'].includes(operation.action)) {
+    throw new Error(`Unsupported publish action: ${operation.action}`);
+  }
+  const normalizedOperation = {
+    ...operation,
+    action: operation.action === 'publish' ? 'create' : operation.action
+  };
+  const result = applyEntryToData(data, normalizedOperation);
+  return {
+    fileName: operation.fileName,
+    action: normalizedOperation.action,
+    kind: operation.kind,
+    target: operation.target,
+    valid: validation.valid,
+    errors: validation.errors,
+    warnings: validation.warnings,
+    infos: validation.infos,
+    itemId: result.itemId,
+    beforeItem: result.beforeItem,
+    afterItem: result.afterItem,
+    summary: buildPublishSummary(data, result.nextData, collectionName)
+  };
+}
+
+async function writeUndoRecord(record) {
+  await ensureDirectories();
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const fileName = `${stamp}--${record.operation.fileName.replace(/\.md$/i, '.json')}`;
+  const filePath = path.join(publishUndoDir, fileName);
+  await fs.writeFile(filePath, JSON.stringify({ ...record, createdAt: new Date().toISOString() }, null, 2), 'utf8');
+  return { fileName, filePath };
+}
+
+async function latestUndoRecord() {
+  await ensureDirectories();
+  const entries = await fs.readdir(publishUndoDir, { withFileTypes: true });
+  const files = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.json'))
+      .map(async (entry) => {
+        const filePath = path.join(publishUndoDir, entry.name);
+        const stat = await fs.stat(filePath);
+        return { fileName: entry.name, filePath, modifiedAt: stat.mtime.toISOString() };
+      })
+  );
+  return files.sort((left, right) => new Date(right.modifiedAt) - new Date(left.modifiedAt))[0] || null;
+}
+
+async function publishOperation(fileName) {
+  const operation = await getInboxFile(fileName);
+  const preview = await previewPublishOperation(fileName);
+  if (!preview.valid) {
+    throw new Error(`Publish validation failed: ${preview.errors.join('; ')}`);
+  }
+  const dataBefore = await readDataSource();
+  const normalizedOperation = {
+    ...operation,
+    action: operation.action === 'publish' ? 'create' : operation.action
+  };
+  const { nextData } = applyEntryToData(dataBefore, normalizedOperation);
+  const undo = await writeUndoRecord({
+    operation: normalizedOperation,
+    dataBefore,
+    dataAfter: nextData,
+    originalContent: operation.content
+  });
+
+  await writeDataSource(nextData);
+  await regenerateRss();
+  const archiveResult = await archiveInboxFile(operation.fileName);
+  await fs.writeFile(undo.filePath, JSON.stringify({
+    operation: normalizedOperation,
+    dataBefore,
+    dataAfter: nextData,
+    originalContent: operation.content,
+    archive: archiveResult,
+    createdAt: new Date().toISOString()
+  }, null, 2), 'utf8');
+
+  return {
+    ...preview,
+    archivedName: archiveResult.archivedName,
+    undoFileName: undo.fileName
+  };
+}
+
+async function undoLatestPublish() {
+  const latest = await latestUndoRecord();
+  if (!latest) {
+    throw new Error('No publish undo record found.');
+  }
+  const record = JSON.parse(await fs.readFile(latest.filePath, 'utf8'));
+  await writeDataSource(record.dataBefore);
+  await regenerateRss();
+
+  if (record.operation?.fileName && record.originalContent) {
+    const inboxPath = path.join(inboxDir, sanitizeFileName(record.operation.fileName));
+    await fs.writeFile(inboxPath, record.originalContent, 'utf8');
+  }
+
+  if (record.archive?.archivedName) {
+    await fs.rm(path.join(archiveDir, record.archive.archivedName), { force: true });
+  }
+  await fs.rm(latest.filePath, { force: true });
+
+  return {
+    ok: true,
+    restoredFileName: record.operation?.fileName || '',
+    undoneItemId: record.operation?.target || record.afterItem?.id || '',
+    undoFileName: latest.fileName
+  };
+}
+
 async function readPendingRequests() {
   await ensureDirectories();
   const entries = await fs.readdir(pendingDir, { withFileTypes: true });
@@ -491,6 +992,26 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/api/validate') {
       const body = await readBody(request);
       const result = await validateOperation(body.fileName);
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/publish/preview') {
+      const body = await readBody(request);
+      const result = await previewPublishOperation(body.fileName);
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/publish/apply') {
+      const body = await readBody(request);
+      const result = await publishOperation(body.fileName);
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/publish/undo') {
+      const result = await undoLatestPublish();
       sendJson(response, 200, result);
       return;
     }

@@ -1178,6 +1178,67 @@ button.tag-chip {
   background: #ffffff;
 }
 
+.publish-preview {
+  display: grid;
+  gap: 12px;
+}
+
+.publish-preview-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.publish-preview-list {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.publish-preview-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.publish-preview-list.error {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: rgba(254, 242, 242, 0.88);
+}
+
+.publish-preview-list.warning {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: rgba(255, 251, 235, 0.88);
+}
+
+.publish-preview-json {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.publish-preview-json textarea {
+  min-height: 160px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
 .action-dialog-actions {
   justify-content: flex-end;
 }
