@@ -26,12 +26,13 @@
 ### B. 构建检查
 
 ```bash
-node scripts/generate-rss.mjs
-npx vite build
+npm run validate:data
+npm run build
 ```
 
 要求：
 
+- `public/data.json` 通过结构校验
 - `public/rss.xml` 正常生成
 - `dist/` 可成功构建
 

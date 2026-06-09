@@ -12,9 +12,12 @@ GameLetter/
 ├─ scripts/                 # 构建辅助脚本
 ├─ studio/                  # Prompt CMS 本地编辑工作台
 ├─ src/
-│  ├─ components/           # 浏览态复用组件
+│  ├─ components/           # 浏览态复用组件、block 渲染与内容卡片
+│  ├─ content/              # 内容模型、block 解析、hash 路由、搜索与标签统计
 │  ├─ hooks/                # 数据加载等复用逻辑
-│  ├─ App.jsx               # 浏览态页面入口
+│  ├─ screens/              # 页面级编排
+│  ├─ view/                 # 动画等视图常量
+│  ├─ App.jsx               # 浏览态数据入口
 │  ├─ main.jsx              # 挂载入口
 │  └─ browse.css            # 浏览态补充样式
 ├─ index.html
@@ -132,11 +135,13 @@ GameLetter/
 ## 分层原则
 
 - 数据层：维护 `capsules`、`issues`、`flows`、`articles` 与 `columns` 集合
-- 展示层：浏览模式和编辑模式都围绕同一批内容实体与 block 类型工作
-- 页面层：`src/App.jsx` 负责浏览态三栏结构、hash 路由、搜索、标签过滤与只读内容编排
+- 内容逻辑层：`src/content/` 负责 block 解析、hash 路由、搜索文本与 tag 统计等纯逻辑
+- 展示层：`src/components/` 负责浏览态 block 渲染、内容卡片、Lightbox 与评论嵌入
+- 页面层：`src/screens/BrowseScreen.jsx` 负责浏览态三栏结构、hash 路由状态、搜索、标签过滤与只读内容编排
+- 入口层：`src/App.jsx` 只加载 newsletter 数据并挂载浏览屏幕
 - 编辑层：`studio/app.js` 负责编辑态三栏结构、block 编辑、slash 插入、待处理状态与本地样式系统
 - 样式层：`studio/app.css` 提供编辑态与浏览态共享视觉基线，`src/browse.css` 只补充浏览态专属样式
-- 构建层：`scripts/generate-rss.mjs` 从 `issues` 与开启 RSS 的 `articles` 生成 RSS
+- 构建层：`scripts/validate-data.mjs` 校验内容结构，`scripts/generate-rss.mjs` 从 `issues` 与开启 RSS 的 `articles` 生成 RSS
 - 部署层：`.github/workflows/deploy.yml` 负责发布 Pages
 
 ## 双界面架构

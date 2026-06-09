@@ -1,0 +1,65 @@
+import { resolveAssetUrl } from '../../content/assets';
+import { capsuleNeedsCollapse } from '../../content/blocks';
+import { renderText } from '../../content/text';
+
+export function BrowseBlock({ block, onImageClick, collapsed = false }) {
+  if (block.type === 'image') {
+    return (
+      <div className="image-block-preview">
+        <button
+          type="button"
+          className="image-frame-button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onImageClick?.({ url: block.url, caption: block.caption || '图片' });
+          }}
+        >
+          <div className="image-frame">
+            <img className="image-block-media" src={block.url} alt={block.caption || '图片'} loading="lazy" />
+          </div>
+        </button>
+        {block.caption ? <div className="image-caption">{renderText(block.caption)}</div> : null}
+      </div>
+    );
+  }
+
+  if (block.type === 'link') {
+    return (
+      <div className="link-block-preview" onClick={(event) => event.stopPropagation()}>
+        <a className="link-block-surface" href={block.url} target="_blank" rel="noreferrer noopener">
+          <div className="link-block-copy">
+            <span className="link-block-badge">LINK</span>
+            <div className="link-block-title">{renderText(block.text || block.url)}</div>
+            <div className="link-block-url">{block.url}</div>
+          </div>
+          <span className="link-block-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    );
+  }
+
+  if (block.type === 'canvas') {
+    const canvasUrl = resolveAssetUrl(block.entry);
+    return (
+      <div className="canvas-block-preview" onClick={(event) => event.stopPropagation()}>
+        <div className="canvas-frame-wrap" style={{ aspectRatio: block.aspectRatio || '16 / 9' }}>
+          {block.allowFullscreen && canvasUrl ? (
+            <a className="canvas-fullscreen-link" href={canvasUrl} target="_blank" rel="noreferrer noopener" aria-label="全屏打开 Canvas">
+              全屏打开
+            </a>
+          ) : null}
+          <iframe
+            className="canvas-frame"
+            src={canvasUrl}
+            title={block.title || 'Canvas'}
+            loading="lazy"
+            allow="fullscreen"
+            sandbox="allow-scripts allow-pointer-lock allow-popups"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return <div className={`capsule-content ${collapsed || capsuleNeedsCollapse(block.text) ? 'collapsed' : ''}`}>{renderText(block.text || '')}</div>;
+}
