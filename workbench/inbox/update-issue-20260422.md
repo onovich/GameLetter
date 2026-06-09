@@ -2,6 +2,7 @@
 action: update
 kind: issue
 target: issue-20260422
+title: Designing Better Game HUDs
 createdAt: 2026-04-22T11:00:00+08:00
 ---
 
