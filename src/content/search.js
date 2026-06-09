@@ -6,8 +6,8 @@ export function getBlockSearchText(block) {
     .join(' ');
 }
 
-export function getIssueSearchText(issue, capsulesById) {
-  const issueBlocks = getIssueBlocks(issue);
+export function getIssueSearchText(issue, capsulesById, canvasesById) {
+  const issueBlocks = getIssueBlocks(issue, { canvasesById });
   return [
     issue.title,
     issue.summary,
@@ -18,15 +18,15 @@ export function getIssueSearchText(issue, capsulesById) {
       }
       if (block.type === 'capsule-ref') {
         const capsule = capsulesById.get(block.capsuleId);
-        return capsule ? `${capsule.summary || ''} ${(capsule.tags || []).join(' ')}` : '';
+        return capsule ? getCapsuleSearchText(capsule, canvasesById) : '';
       }
       return getBlockSearchText(block);
     })
   ].join(' ').toLowerCase();
 }
 
-export function getCapsuleSearchText(capsule) {
-  const blockText = getCapsuleBlocks(capsule)
+export function getCapsuleSearchText(capsule, canvasesById) {
+  const blockText = getCapsuleBlocks(capsule, { canvasesById })
     .map((block) => getBlockSearchText(block))
     .join(' ');
 
@@ -37,11 +37,11 @@ export function getPlainEntrySearchText(entry) {
   return [entry.title, entry.summary, entry.body, entry.content, ...(entry.tags || [])].join(' ').toLowerCase();
 }
 
-export function getArticleSearchText(article, capsulesById, columnsById) {
-  const blockText = getArticleBlocks(article).map((block) => {
+export function getArticleSearchText(article, capsulesById, columnsById, canvasesById) {
+  const blockText = getArticleBlocks(article, { canvasesById }).map((block) => {
     if (block.type === 'capsule-ref' || block.type === 'canvas-ref') {
       const capsule = capsulesById.get(block.capsuleId);
-      return capsule ? getCapsuleSearchText(capsule) : '';
+      return capsule ? getCapsuleSearchText(capsule, canvasesById) : '';
     }
     return getBlockSearchText(block);
   }).join(' ');

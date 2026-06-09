@@ -3,8 +3,8 @@ import { renderText } from '../../content/text';
 import { BrowseBlock } from '../blocks/BrowseBlock';
 import { EmbeddedCapsuleCard } from './EmbeddedCapsuleCard';
 
-export function ArticleContent({ article, capsulesById, onOpenCapsule, onImageClick }) {
-  const articleBlocks = getArticleBlocks(article);
+export function ArticleContent({ article, capsulesById, onOpenCapsule, onImageClick, canvasesById }) {
+  const articleBlocks = getArticleBlocks(article, { canvasesById });
 
   return (
     <div className="article-body">
@@ -26,7 +26,7 @@ export function ArticleContent({ article, capsulesById, onOpenCapsule, onImageCl
           if (!capsule) {
             return null;
           }
-          return <EmbeddedCapsuleCard key={`${article.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} />;
+          return <EmbeddedCapsuleCard key={`${article.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} canvasesById={canvasesById} />;
         }
 
         if (block.type === 'note') {

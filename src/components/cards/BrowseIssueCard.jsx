@@ -4,7 +4,7 @@ import { cardMotion } from '../../view/animations';
 import { CommentSection } from '../CommentSection';
 import { IssueContent } from './IssueContent';
 
-export function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById }) {
+export function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById, canvasesById }) {
   return (
     <motion.article {...cardMotion} className="issue-list-item published">
       <div className="item-head">
@@ -33,7 +33,7 @@ export function BrowseIssueCard({ issue, active, onOpenIssue, onOpenCapsule, onI
             transition={{ duration: 0.26, ease: 'easeInOut' }}
           >
             <div className="issue-card-expand-inner">
-              <IssueContent issue={issue} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} />
+              <IssueContent issue={issue} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} canvasesById={canvasesById} />
             </div>
           </motion.div>
         ) : null}

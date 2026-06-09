@@ -21,6 +21,16 @@ import {
   serializeDraft,
   slugifyLabel
 } from './modules/content-utils.js';
+import {
+  capsuleNeedsCollapse as sharedCapsuleNeedsCollapse,
+  getCapsuleBlocks as getSharedCapsuleBlocks,
+  getCapsulePreviewText as getSharedCapsulePreviewText,
+  getCapsuleTextFromBlocks as getSharedCapsuleTextFromBlocks,
+  isLikelyImageUrl as sharedIsLikelyImageUrl,
+  isLikelyWebUrl as sharedIsLikelyWebUrl,
+  parseCapsuleChunkToBlock,
+  serializeCapsuleBlocks as serializeSharedCapsuleBlocks
+} from '../shared/content-blocks.js';
 
 const elements = {
   appTitle: document.getElementById('appTitle'),
@@ -537,37 +547,35 @@ function createCapsuleBlock(capsule) {
   };
 }
 
-function isLikelyImageUrl(url = '') {
-  if (!url) {
-    return false;
+function toEditorBlock(block) {
+  if (!block) {
+    return null;
   }
-  return /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(url)
-    || /images\.unsplash\.com|cdn\.|image\.|imgur\.com|cloudinary\.com/i.test(url);
+  if (block.id && block.type) {
+    return { ...block, tags: [...(block.tags || [])] };
+  }
+  if (block.type === 'image') {
+    return createImageBlock(block.url || '', block.caption || '');
+  }
+  if (block.type === 'link') {
+    return createLinkBlock(block.text || block.title || block.url || '', block.url || '');
+  }
+  if (block.type === 'canvas') {
+    return createCanvasBlock(block);
+  }
+  return createTextBlock(block.text || block.content || '');
+}
+
+function isLikelyImageUrl(url = '') {
+  return sharedIsLikelyImageUrl(url);
 }
 
 function isLikelyWebUrl(url = '') {
-  return /^https?:\/\/\S+$/i.test(String(url || '').trim());
+  return sharedIsLikelyWebUrl(url);
 }
 
 function getCapsuleTextFromBlocks(blocks = []) {
-  return blocks
-    .map((block) => {
-      if (block.type === 'text') {
-        return block.text || '';
-      }
-      if (block.type === 'image') {
-        return block.caption || '';
-      }
-      if (block.type === 'link') {
-        return block.text || block.url || '';
-      }
-      if (block.type === 'canvas') {
-        return [block.title, block.caption, block.entry].filter(Boolean).join(' ');
-      }
-      return block.title || block.text || '';
-    })
-    .join('\n\n')
-    .trim();
+  return getSharedCapsuleTextFromBlocks(blocks);
 }
 
 function extractCapsuleTagsFromBlocks(blocks = []) {
@@ -658,26 +666,6 @@ function parseChunkToBlock(chunk = '', capsuleMap = new Map()) {
   const marker = lines[0];
   const fields = parseStructuredFields(lines.slice(1));
 
-  if (marker === '[图片]') {
-    return createImageBlock(fields.url || '', fields.caption || '');
-  }
-
-  if (marker === '[链接]') {
-    return createLinkBlock(fields.text || fields.title || fields.url || '', fields.url || '');
-  }
-
-  if (marker === '[Canvas]') {
-    return createCanvasBlock({
-      id: fields.canvasId || fields.id || '',
-      title: fields.title || fields.name || 'Canvas',
-      summary: fields.caption || fields.summary || '',
-      entry: fields.entry || fields.src || fields.url || '',
-      aspectRatio: fields.aspectRatio || '16 / 9',
-      allowFullscreen: fields.allowFullscreen !== 'false',
-      tags: parseTagList(fields.tags || '')
-    });
-  }
-
   if (marker === '[引用 Capsule]') {
     const capsuleId = String(fields.capsuleId || '').trim();
     if (!capsuleId) {
@@ -696,106 +684,20 @@ function parseChunkToBlock(chunk = '', capsuleMap = new Map()) {
         };
   }
 
-  if (isLikelyImageUrl(normalized)) {
-    return createImageBlock(normalized, '');
-  }
-
-  if (isLikelyWebUrl(normalized)) {
-    return createLinkBlock(normalized, normalized);
-  }
-
-  return createTextBlock(normalized);
+  return toEditorBlock(parseCapsuleChunkToBlock(normalized, { canvasById: getCanvasMap() }));
 }
 
 function parseCapsuleBodyToBlocks(body = '') {
-  const normalizedBody = normalizeLineEndings(body);
-  const blocks = normalizedBody
+  const blocks = normalizeLineEndings(body)
     .split(/\n{2,}/)
-    .map((chunk) => parseChunkToBlock(chunk))
+    .map((chunk) => parseCapsuleChunkToBlock(chunk, { canvasById: getCanvasMap() }))
+    .map(toEditorBlock)
     .filter(Boolean);
   return blocks.length ? blocks : [createTextBlock('')];
 }
 
-function normalizePublishedCapsuleBlock(block) {
-  if (!block) {
-    return null;
-  }
-
-  if (typeof block === 'string') {
-    return parseChunkToBlock(block);
-  }
-
-  const type = String(block.type || '').trim();
-  if (type === 'image') {
-    const imageUrl = String(block.url || block.image || block.src || '').trim();
-    return imageUrl ? createImageBlock(imageUrl, block.caption || block.text || '') : null;
-  }
-
-  if (type === 'link') {
-    const url = String(block.url || '').trim();
-    const text = String(block.text || block.title || block.label || url).trim();
-    return url || text ? createLinkBlock(text, url) : null;
-  }
-
-  if (type === 'canvas' || type === 'canvas-ref') {
-    const canvasId = String(block.canvasId || block.id || '').trim();
-    const canvas = canvasId ? getCanvasMap().get(canvasId) : null;
-    return createCanvasBlock({
-      ...(canvas || {}),
-      id: canvasId || canvas?.id || '',
-      title: block.title || block.label || canvas?.title || 'Canvas',
-      summary: block.caption || block.summary || canvas?.summary || '',
-      entry: block.entry || block.src || block.url || canvas?.entry || '',
-      aspectRatio: block.aspectRatio || canvas?.aspectRatio || '16 / 9',
-      allowFullscreen: block.allowFullscreen !== false
-    });
-  }
-
-  if (type === 'text' || type === 'note' || type === 'thought') {
-    return createTextBlock(block.text || block.content || '');
-  }
-
-  if (String(block.content || '').trim()) {
-    return createTextBlock(block.content);
-  }
-
-  return null;
-}
-
 function serializeCapsuleBlocks(blocks = []) {
-  return blocks
-    .map((block) => {
-      if (block.type === 'image') {
-        return [
-          '[图片]',
-          `url: ${String(block.url || '').trim()}`,
-          `caption: ${String(block.caption || '').trim()}`
-        ].join('\n').trim();
-      }
-      if (block.type === 'link') {
-        return [
-          '[链接]',
-          `text: ${String(block.text || '').trim()}`,
-          `url: ${String(block.url || '').trim()}`
-        ].join('\n').trim();
-      }
-      if (block.type === 'canvas') {
-        return [
-          '[Canvas]',
-          `canvasId: ${String(block.canvasId || '').trim()}`,
-          `title: ${String(block.title || '').trim()}`,
-          `entry: ${String(block.entry || '').trim()}`,
-          `aspectRatio: ${String(block.aspectRatio || '16 / 9').trim()}`,
-          `allowFullscreen: ${block.allowFullscreen !== false}`,
-          `caption: ${String(block.caption || '').trim()}`,
-          block.tags?.length ? `tags: ${block.tags.join(', ')}` : ''
-        ].filter(Boolean).join('\n').trim();
-      }
-      return String(block.text || '').trim();
-    })
-    .filter(Boolean)
-    .join('\n\n')
-    .trim();
+  return serializeSharedCapsuleBlocks(blocks);
 }
 
 function getPublishedCapsuleBlocks(capsule) {
@@ -803,63 +705,11 @@ function getPublishedCapsuleBlocks(capsule) {
     return [createTextBlock('')];
   }
 
-  const payload = capsule.payload || {};
-  const normalizedBlocks = [
-    ...(Array.isArray(capsule.blocks) ? capsule.blocks : []),
-    ...(Array.isArray(payload.blocks) ? payload.blocks : [])
-  ]
-    .map((block) => normalizePublishedCapsuleBlock(block))
+  const normalizedBlocks = getSharedCapsuleBlocks(capsule, { canvasById: getCanvasMap() })
+    .map(toEditorBlock)
     .filter(Boolean);
 
-  if (normalizedBlocks.length) {
-    return normalizedBlocks;
-  }
-
-  const serializedBody = [capsule.body, capsule.content, payload.body]
-    .find((value) => typeof value === 'string' && String(value).trim());
-
-  if (serializedBody) {
-    return parseCapsuleBodyToBlocks(serializedBody);
-  }
-
-  const blocks = [];
-
-  if (payload.type === 'canvas') {
-    const canvas = payload.canvasId ? getCanvasMap().get(payload.canvasId) : null;
-    return [createCanvasBlock({
-      ...(canvas || {}),
-      id: payload.canvasId || canvas?.id || '',
-      title: payload.title || capsule.title || canvas?.title || 'Canvas',
-      summary: payload.caption || payload.commentary || capsule.summary || canvas?.summary || '',
-      entry: payload.entry || payload.src || payload.url || canvas?.entry || '',
-      aspectRatio: payload.aspectRatio || canvas?.aspectRatio || '16 / 9',
-      allowFullscreen: payload.allowFullscreen !== false,
-      tags: capsule.tags || canvas?.tags || []
-    })];
-  }
-
-  if (payload.type === 'image' && payload.url) {
-    blocks.push(createImageBlock(payload.url, payload.caption || capsule.title || ''));
-  }
-
-  if (payload.image) {
-    blocks.push(createImageBlock(payload.image, payload.caption || capsule.title || ''));
-  }
-
-  if (payload.content) {
-    blocks.push(createTextBlock(payload.content));
-  }
-  if (payload.caption && payload.type !== 'image') {
-    blocks.push(createTextBlock(payload.caption));
-  }
-  if (payload.commentary) {
-    blocks.push(createTextBlock(payload.commentary));
-  }
-  if (payload.url && payload.type !== 'image') {
-    blocks.push(createTextBlock(payload.url));
-  }
-
-  return blocks.length ? blocks : [createTextBlock(capsule.summary || capsule.title || '')];
+  return normalizedBlocks.length ? normalizedBlocks : [createTextBlock(capsule.summary || capsule.title || '')];
 }
 
 function showToast(message, type = 'info') {
@@ -1534,7 +1384,7 @@ function renderPagination(currentPage, totalPages, action) {
 }
 
 function capsuleNeedsCollapse(text) {
-  return String(text || '').length > 240;
+  return sharedCapsuleNeedsCollapse(text);
 }
 
 function getHashtagContext(value, selectionStart) {
@@ -2483,11 +2333,7 @@ function renderCapsulePreviewBlocks(blocks = [], fallbackText = '') {
 }
 
 function getCapsulePreviewText(blocks = [], fallbackText = '') {
-  const firstText = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
-  if (firstText) {
-    return firstText.text || '';
-  }
-  return String(fallbackText || '').trim();
+  return getSharedCapsulePreviewText(blocks, fallbackText);
 }
 
 function renderCapsuleEditorBlocks(owner, blocks) {

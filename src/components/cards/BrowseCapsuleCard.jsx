@@ -3,8 +3,8 @@ import { getCapsuleBlocks } from '../../content/blocks';
 import { cardMotion } from '../../view/animations';
 import { BrowseBlock } from '../blocks/BrowseBlock';
 
-export function BrowseCapsuleCard({ capsule, onOpenCapsule, onImageClick, onToggleTag, activeTags }) {
-  const blocks = getCapsuleBlocks(capsule);
+export function BrowseCapsuleCard({ capsule, onOpenCapsule, onImageClick, onToggleTag, activeTags, canvasesById }) {
+  const blocks = getCapsuleBlocks(capsule, { canvasesById });
 
   return (
     <motion.article {...cardMotion} className="capsule-card published" onClick={() => onOpenCapsule(capsule.slug)}>

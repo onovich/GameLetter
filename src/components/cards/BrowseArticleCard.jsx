@@ -3,7 +3,7 @@ import { renderText } from '../../content/text';
 import { cardMotion } from '../../view/animations';
 import { ArticleContent } from './ArticleContent';
 
-export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById }) {
+export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById, canvasesById }) {
   return (
     <motion.article {...cardMotion} className={`article-card published ${active ? 'active' : ''}`}>
       <div className="item-head">
@@ -33,7 +33,7 @@ export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle,
             transition={{ duration: 0.26, ease: 'easeInOut' }}
           >
             <div className="issue-card-expand-inner">
-              <ArticleContent article={article} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} />
+              <ArticleContent article={article} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} canvasesById={canvasesById} />
             </div>
           </motion.div>
         ) : null}

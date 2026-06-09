@@ -5,8 +5,8 @@ import { cardMotion } from '../../view/animations';
 import { BrowseBlock } from '../blocks/BrowseBlock';
 import { EmbeddedCapsuleCard } from './EmbeddedCapsuleCard';
 
-export function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick }) {
-  const issueBlocks = getIssueBlocks(issue);
+export function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick, canvasesById }) {
+  const issueBlocks = getIssueBlocks(issue, { canvasesById });
   return (
     <div className="issue-block-list">
       {issueBlocks.map((block, index) => {
@@ -16,7 +16,7 @@ export function IssueContent({ issue, capsulesById, onOpenCapsule, onImageClick 
             return null;
           }
 
-          return <EmbeddedCapsuleCard key={`${issue.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} />;
+          return <EmbeddedCapsuleCard key={`${issue.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} canvasesById={canvasesById} />;
         }
 
         if (block.type === 'note') {

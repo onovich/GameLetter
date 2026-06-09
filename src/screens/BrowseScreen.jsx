@@ -22,7 +22,7 @@ function createInitialMode() {
 }
 
 export function BrowseScreen({ data }) {
-  const { site, capsules, issues, flows, articles, columns, loading, error } = data;
+  const { site, capsules, issues, flows, articles, columns, canvases, loading, error } = data;
   const [route, setRoute] = useState(() => getCurrentRoute());
   const [mode, setMode] = useState(createInitialMode);
   const [lightboxImage, setLightboxImage] = useState(null);
@@ -47,6 +47,7 @@ export function BrowseScreen({ data }) {
 
   const capsulesById = useMemo(() => new Map(capsules.map((capsule) => [capsule.id, capsule])), [capsules]);
   const columnsById = useMemo(() => new Map((columns || []).map((column) => [column.id, column])), [columns]);
+  const canvasesById = useMemo(() => new Map((canvases || []).map((canvas) => [canvas.id, canvas])), [canvases]);
 
   const sortedIssues = useMemo(() => sortPublishedEntries(issues), [issues]);
   const sortedCapsules = useMemo(() => sortPublishedEntries(capsules), [capsules]);
@@ -70,9 +71,9 @@ export function BrowseScreen({ data }) {
       if (!query) {
         return true;
       }
-      return getIssueSearchText(issue, capsulesById).includes(query);
+      return getIssueSearchText(issue, capsulesById, canvasesById).includes(query);
     });
-  }, [sortedIssues, searchByMode.issue, activeTagsByMode.issue, capsulesById]);
+  }, [sortedIssues, searchByMode.issue, activeTagsByMode.issue, capsulesById, canvasesById]);
 
   const filteredCapsules = useMemo(() => {
     const query = searchByMode.capsule.trim().toLowerCase();
@@ -83,9 +84,9 @@ export function BrowseScreen({ data }) {
       if (!query) {
         return true;
       }
-      return getCapsuleSearchText(capsule).includes(query);
+      return getCapsuleSearchText(capsule, canvasesById).includes(query);
     });
-  }, [sortedCapsules, searchByMode.capsule, activeTagsByMode.capsule]);
+  }, [sortedCapsules, searchByMode.capsule, activeTagsByMode.capsule, canvasesById]);
 
   const filteredFlows = useMemo(() => {
     const query = searchByMode.flow.trim().toLowerCase();
@@ -106,9 +107,9 @@ export function BrowseScreen({ data }) {
       if (!query) {
         return true;
       }
-      return getArticleSearchText(article, capsulesById, columnsById).includes(query);
+      return getArticleSearchText(article, capsulesById, columnsById, canvasesById).includes(query);
     });
-  }, [sortedArticles, searchByMode.article, activeTagsByMode.article, capsulesById, columnsById]);
+  }, [sortedArticles, searchByMode.article, activeTagsByMode.article, capsulesById, columnsById, canvasesById]);
 
   const activeIssue = mode === 'issue'
     ? filteredIssues.find((issue) => issue.slug === route.slug) || filteredIssues[0] || null
@@ -259,6 +260,7 @@ export function BrowseScreen({ data }) {
                         onImageClick={setLightboxImage}
                         onToggleTag={(tag) => toggleTag('capsule', tag)}
                         activeTags={activeTagsByMode.capsule}
+                        canvasesById={canvasesById}
                       />
                     );
                   }
@@ -286,6 +288,7 @@ export function BrowseScreen({ data }) {
                         onToggleTag={(tag) => toggleTag('article', tag)}
                         activeTags={activeTagsByMode.article}
                         capsulesById={capsulesById}
+                        canvasesById={canvasesById}
                       />
                     );
                   }
@@ -300,6 +303,7 @@ export function BrowseScreen({ data }) {
                       onToggleTag={(tag) => toggleTag('issue', tag)}
                       activeTags={activeTagsByMode.issue}
                       capsulesById={capsulesById}
+                      canvasesById={canvasesById}
                     />
                   );
                 }) : <div className="empty-card"><h3>没有可展示内容</h3><p className="hint">试试清空搜索或标签筛选。</p></div>}

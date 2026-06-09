@@ -911,11 +911,14 @@ async function validateOperation(fileName) {
 async function serveStatic(request, response, url) {
   const isBrowseIndex = url.pathname === '/browse' || url.pathname === '/browse/';
   const isBrowseAsset = url.pathname.startsWith('/browse/');
+  const isSharedModule = url.pathname.startsWith('/shared/');
   const isDistAsset = url.pathname.startsWith('/assets/')
     || url.pathname.startsWith('/canvases/')
     || url.pathname === '/data.json'
     || url.pathname === '/rss.xml';
-  const baseDir = (isBrowseIndex || isBrowseAsset || isDistAsset) ? distDir : studioDir;
+  const baseDir = isSharedModule
+    ? rootDir
+    : ((isBrowseIndex || isBrowseAsset || isDistAsset) ? distDir : studioDir);
   const requestedPath = isBrowseIndex
     ? '/index.html'
     : isBrowseAsset
