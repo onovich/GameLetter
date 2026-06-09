@@ -1,139 +1,26 @@
-const PAGE_SIZE = 20;
-const SETTINGS_STORAGE_KEY = 'prompt-cms-style-settings';
-const SETTINGS_DEFAULT_STORAGE_KEY = 'prompt-cms-style-default-settings';
-const editorModes = [
-  { key: 'issue', label: 'Issue' },
-  { key: 'capsule', label: 'Capsule' },
-  { key: 'flow', label: 'Flow' },
-  { key: 'article', label: 'Article' },
-  { key: 'canvas', label: 'Canvas' }
-];
-
-const defaultSettings = {
-  shellPadding: 28,
-  workspaceGap: 24,
-  cardRadius: 26,
-  cardPadding: 20,
-  thumbnailWidth: 240,
-  themeTransitionMs: 420,
-  shadowBlur: 50,
-  shadowY: 20,
-  shadowOpacity: 18,
-  panelOpacity: 78,
-  bgColor: '#ecf6ff',
-  bgAccentColor: '#d5ebff',
-  capsuleModeBgColor: '#edf2ff',
-  capsuleModeBgAccentColor: '#d8dcff',
-  panelColor: '#ffffff',
-  cardBorderColor: '#809dc4',
-  embedBorderColor: '#b4c4df',
-  iconBorderColor: '#c4d4e6',
-  searchBorderColor: '#bfd0e4',
-  clearButtonBorderColor: '#d7dde8',
-  clearButtonBgColor: '#f6f8fc',
-  clearButtonTextColor: '#72839d',
-  shadowColor: '#6e91be',
-  capsuleModeShadowColor: '#8187d8',
-  accentColor: '#74a7f7',
-  capsuleTabColor: '#74a7f7',
-  issueTabColor: '#86cbbf',
-  flowTabColor: '#f59e0b',
-  articleTabColor: '#8b5cf6',
-  canvasTabColor: '#14b8a6',
-  linkColor: '#2f6fb2',
-  linkBorderColor: '#bcd2ea',
-  linkBgColor: '#f6fbff',
-  headingColor: '#264056',
-  textColor: '#355065',
-  issueBodyColor: '#355065',
-  capsuleBodyColor: '#314f77',
-  mutedColor: '#7b8ca5',
-  appTitleFontSize: 34,
-  tabFontSize: 16,
-  cardTitleFontSize: 18,
-  capsuleBodyFontSize: 16,
-  issueBodyFontSize: 16,
-  metaFontSize: 11,
-  tagFontSize: 12,
-  appTitle: '编辑模式',
-  capsuleSubtitle: '',
-  issueSubtitle: ''
-};
-
-const settingsSchema = [
-  {
-    title: '通用 · 布局与动效',
-    columns: 2,
-    controls: [
-      { key: 'shellPadding', label: '页面边距', type: 'range', min: 12, max: 48, step: 1, unit: 'px' },
-      { key: 'workspaceGap', label: '三栏间距', type: 'range', min: 12, max: 36, step: 1, unit: 'px' },
-      { key: 'cardRadius', label: '卡片圆角', type: 'range', min: 18, max: 34, step: 1, unit: 'px' },
-      { key: 'cardPadding', label: '卡片内边距', type: 'range', min: 14, max: 28, step: 1, unit: 'px' },
-      { key: 'thumbnailWidth', label: '图片缩略宽度', type: 'range', min: 180, max: 320, step: 2, unit: 'px' },
-      { key: 'themeTransitionMs', label: '模式切换补间时长', type: 'range', min: 120, max: 1200, step: 20, unit: 'ms' },
-      { key: 'shadowBlur', label: '通用阴影模糊', type: 'range', min: 12, max: 80, step: 1, unit: 'px' },
-      { key: 'shadowY', label: '通用阴影位移', type: 'range', min: 0, max: 30, step: 1, unit: 'px' },
-      { key: 'shadowOpacity', label: '通用阴影透明度', type: 'range', min: 4, max: 32, step: 1, unit: '%' }
-    ]
-  },
-  {
-    title: '通用 · 容器与边框',
-    columns: 2,
-    controls: [
-      { key: 'panelColor', label: '卡片底色', type: 'color' },
-      { key: 'panelOpacity', label: '卡片透明度', type: 'range', min: 62, max: 96, step: 1, unit: '%' },
-      { key: 'cardBorderColor', label: '卡片边框', type: 'color' },
-      { key: 'embedBorderColor', label: '内嵌卡片边框', type: 'color' },
-      { key: 'iconBorderColor', label: '图标按钮边框', type: 'color' },
-      { key: 'searchBorderColor', label: '搜索框边框', type: 'color' },
-      { key: 'linkBorderColor', label: '链接卡片边框', type: 'color' },
-      { key: 'linkBgColor', label: '链接卡片底色', type: 'color' },
-      { key: 'clearButtonBorderColor', label: '清除按钮边框', type: 'color' },
-      { key: 'clearButtonBgColor', label: '清除按钮底色', type: 'color' },
-      { key: 'clearButtonTextColor', label: '清除按钮文字', type: 'color' }
-    ]
-  },
-  {
-    title: '通用 · 文字与标题',
-    columns: 2,
-    controls: [
-      { key: 'appTitle', label: '标题栏主标题', type: 'text', span: 2 },
-      { key: 'appTitleFontSize', label: '标题栏字号', type: 'range', min: 24, max: 44, step: 1, unit: 'px' },
-      { key: 'tabFontSize', label: 'Tab 字号', type: 'range', min: 13, max: 20, step: 1, unit: 'px' },
-      { key: 'cardTitleFontSize', label: '卡片标题字号', type: 'range', min: 14, max: 24, step: 1, unit: 'px' },
-      { key: 'metaFontSize', label: '时间/状态字号', type: 'range', min: 10, max: 16, step: 1, unit: 'px' },
-      { key: 'tagFontSize', label: 'Tag 字号', type: 'range', min: 10, max: 16, step: 1, unit: 'px' },
-      { key: 'accentColor', label: '通用强调色', type: 'color' },
-      { key: 'linkColor', label: '链接文字颜色', type: 'color' },
-      { key: 'headingColor', label: '标题颜色', type: 'color' },
-      { key: 'mutedColor', label: '说明文字颜色', type: 'color' }
-    ]
-  },
-  {
-    title: 'Capsule 专属',
-    columns: 2,
-    controls: [
-      { key: 'capsuleModeBgColor', label: 'Capsule 模式背景主色', type: 'color' },
-      { key: 'capsuleModeBgAccentColor', label: 'Capsule 模式背景高光', type: 'color' },
-      { key: 'capsuleModeShadowColor', label: 'Capsule 模式卡片阴影', type: 'color' },
-      { key: 'capsuleTabColor', label: 'Capsule Tab 选中色', type: 'color' },
-      { key: 'capsuleBodyColor', label: 'Capsule 正文颜色', type: 'color' },
-      { key: 'capsuleBodyFontSize', label: 'Capsule 正文字号', type: 'range', min: 13, max: 22, step: 1, unit: 'px' }
-    ]
-  },
-  {
-    title: 'Issue 专属',
-    columns: 2,
-    controls: [
-      { key: 'bgColor', label: 'Issue 背景主色', type: 'color' },
-      { key: 'bgAccentColor', label: 'Issue 背景高光', type: 'color' },
-      { key: 'shadowColor', label: 'Issue 阴影颜色', type: 'color' },
-      { key: 'issueTabColor', label: 'Issue Tab 颜色', type: 'color' },
-      { key: 'issueBodyColor', label: 'Issue 正文颜色', type: 'color' },
-      { key: 'issueBodyFontSize', label: 'Issue 正文字号', type: 'range', min: 13, max: 22, step: 1, unit: 'px' }
-    ]
-  }
-];
+import {
+  PAGE_SIZE,
+  SETTINGS_STORAGE_KEY,
+  SETTINGS_DEFAULT_STORAGE_KEY,
+  editorModes,
+  defaultSettings,
+  settingsSchema
+} from './modules/settings.js';
+import {
+  actionToStatus,
+  applyPanguSpacing,
+  escapeHtml,
+  extractTags,
+  formatFlowTime,
+  getStatusLabel,
+  inferTitleFromText,
+  normalizeLineEndings,
+  parseFrontmatter,
+  parseTagList,
+  renderTextContent,
+  serializeDraft,
+  slugifyLabel
+} from './modules/content-utils.js';
 
 const elements = {
   appTitle: document.getElementById('appTitle'),
@@ -710,16 +597,6 @@ function canInsertBetweenBlocks(blocks = [], index = 0) {
   return !(isBlankTextBlock(blocks[index - 1]) && isBlankTextBlock(blocks[index]));
 }
 
-function applyPanguSpacing(value = '') {
-  return String(value)
-    .replace(/([\u2e80-\u9fff])([A-Za-z0-9]+)/g, '$1 $2')
-    .replace(/([A-Za-z0-9]+)([\u2e80-\u9fff])/g, '$1 $2');
-}
-
-function renderTextContent(value = '') {
-  return escapeHtml(applyPanguSpacing(value));
-}
-
 function parseEditorTarget(target = '') {
   const normalized = String(target || '');
   const separatorIndex = normalized.lastIndexOf(':');
@@ -730,10 +607,6 @@ function parseEditorTarget(target = '') {
     owner: normalized.slice(0, separatorIndex),
     blockId: normalized.slice(separatorIndex + 1)
   };
-}
-
-function normalizeLineEndings(value = '') {
-  return String(value).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
 function parseStructuredFields(lines = []) {
@@ -989,90 +862,12 @@ function getPublishedCapsuleBlocks(capsule) {
   return blocks.length ? blocks : [createTextBlock(capsule.summary || capsule.title || '')];
 }
 
-function escapeHtml(value = '') {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function showToast(message, type = 'info') {
   elements.toast.textContent = message;
   elements.toast.classList.remove('hidden');
   elements.toast.style.background = type === 'error' ? '#7f1d1d' : '#0f172a';
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => elements.toast.classList.add('hidden'), 2600);
-}
-
-function parseFrontmatter(rawContent = '') {
-  const content = normalizeLineEndings(rawContent.replace(/^\uFEFF/, ''));
-  if (!content.startsWith('---\n')) {
-    return { frontmatter: {}, body: content.trim() };
-  }
-  const endIndex = content.indexOf('\n---\n', 4);
-  if (endIndex === -1) {
-    return { frontmatter: {}, body: content.trim() };
-  }
-  const header = content.slice(4, endIndex).trim();
-  const body = content.slice(endIndex + 5).trim();
-  const frontmatter = {};
-  header.split(/\r?\n/).forEach((line) => {
-    const separatorIndex = line.indexOf(':');
-    if (separatorIndex === -1) {
-      return;
-    }
-    const key = line.slice(0, separatorIndex).trim();
-    const value = line.slice(separatorIndex + 1).trim();
-    if (key) {
-      frontmatter[key] = value;
-    }
-  });
-  return { frontmatter, body };
-}
-
-function serializeDraft(frontmatter, body) {
-  const header = Object.entries(frontmatter)
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')
-    .map(([key, value]) => `${key}: ${value}`)
-    .join('\n');
-  return `---\n${header}\n---\n\n${(body || '').trim()}`.trim();
-}
-
-function parseTagList(value = '') {
-  return String(value)
-    .split(/[,，]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function extractTags(text = '') {
-  const matches = text.match(/#([\u4e00-\u9fa5A-Za-z0-9_-]+)/g) || [];
-  const unique = [];
-  matches.forEach((rawTag) => {
-    const tag = rawTag.slice(1);
-    if (!unique.some((item) => item.toLowerCase() === tag.toLowerCase())) {
-      unique.push(tag);
-    }
-  });
-  return unique;
-}
-
-function inferTitleFromText(text = '', fallback = '未命名') {
-  const lines = String(text)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  return lines[0]?.slice(0, 48) || fallback;
-}
-
-function slugifyLabel(value = '') {
-  return String(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-+/g, '-') || 'untitled';
 }
 
 function generateAutoFileName(kind, body, existingName = '') {
@@ -1082,26 +877,6 @@ function generateAutoFileName(kind, body, existingName = '') {
   }
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   return `${kind}-${stamp}-${slugifyLabel(inferTitleFromText(body, kind)).slice(0, 30)}.md`;
-}
-
-function getStatusLabel(status) {
-  return {
-    published: '已发布',
-    pendingPublish: '待发布',
-    pendingRefresh: '待刷新',
-    pendingDelete: '待删除',
-    draft: '草稿'
-  }[status] || '草稿';
-}
-
-function actionToStatus(action) {
-  if (action === 'delete') {
-    return 'pendingDelete';
-  }
-  if (action === 'update') {
-    return 'pendingRefresh';
-  }
-  return 'pendingPublish';
 }
 
 function requestJson(url, options = {}) {
@@ -1142,11 +917,6 @@ function normalizeInboxFile(file) {
 
 function resolveItemCreatedAt(...values) {
   return values.find((value) => value) || new Date().toISOString();
-}
-
-function formatFlowTime(item) {
-  const flowTime = item.createdAt || item.updatedAt;
-  return new Date(flowTime).toLocaleString('zh-CN');
 }
 
 function renderModeNavigation() {
