@@ -71,6 +71,10 @@
   font-size: calc(var(--card-title-font-size) + 2px);
 }
 
+.article-read-time {
+  color: color-mix(in srgb, var(--article-tab-color) 62%, var(--muted));
+}
+
 .article-quote {
   margin: 0;
   padding: 14px 16px;

@@ -19,6 +19,8 @@ export {
   normalizeIssueBlock,
   parseCapsuleBodyToBlocks,
   parseCapsuleChunkToBlock,
+  parseArticleBodyToBlocks,
+  parseArticleChunkToBlock,
   parseIssueBodyToBlocks,
   parseIssueChunkToBlock,
   parseStructuredFields,

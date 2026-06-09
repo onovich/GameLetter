@@ -1087,6 +1087,16 @@ function articleBlocksToPlainText(blocks = []) {
     .join('\n\n');
 }
 
+function estimateReadingMinutes(value = '') {
+  const compact = String(value || '').replace(/\s+/g, '');
+  return Math.max(1, Math.ceil(compact.length / 500));
+}
+
+function getColumnTitle(columnId = '') {
+  const column = (state.dataSource.columns || []).find((item) => item.id === columnId);
+  return column?.title || '';
+}
+
 function getPlainModeConfig(kind) {
   return {
     flow: {
@@ -2730,6 +2740,14 @@ function renderPlainEditorForm(kind, item = null) {
           <input data-field="aspectRatio" type="text" value="${escapeHtml(item?.aspectRatio || '16 / 9')}" placeholder="16 / 9" />
         </label>
       ` : ''}
+      ${isArticle ? `
+        <div class="plain-editor-wide article-editor-tools" aria-label="Article 结构工具">
+          <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="heading">小标题</button>
+          <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="quote">引文</button>
+          <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="capsule">Capsule 引用</button>
+          <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="canvas">Canvas 论据</button>
+        </div>
+      ` : ''}
       <label class="plain-editor-wide">
         <span>${escapeHtml(config.primaryFieldLabel)}</span>
         <textarea data-field="body" rows="${isArticle ? 10 : 5}" placeholder="${escapeHtml(config.primaryFieldPlaceholder)}">${escapeHtml(item?.body || '')}</textarea>
@@ -2753,7 +2771,9 @@ function renderPlainModeCard(kind, item) {
         <div class="item-main">
           <button class="item-title-trigger" data-action="plain-edit" data-kind="${kind}" data-key="${escapeHtml(item.key)}" type="button">${renderTextContent(item.title || `未命名 ${config.title}`)}</button>
           <div class="item-meta">
+            ${kind === 'article' && item.columnId ? `<span class="hint item-timestamp">${renderTextContent(getColumnTitle(item.columnId))}</span>` : ''}
             <span class="hint item-timestamp">${formatFlowTime(item)}</span>
+            ${kind === 'article' ? `<span class="hint item-timestamp">约 ${estimateReadingMinutes([item.title, item.summary, item.body].filter(Boolean).join(' '))} 分钟</span>` : ''}
           </div>
         </div>
         <div class="item-side item-side-compact">
@@ -2873,6 +2893,41 @@ function readPlainEditorValues(kind, key = 'composer') {
     aspectRatio: valueOf('aspectRatio').trim() || '16 / 9',
     tags: parseTagList(valueOf('tags'))
   };
+}
+
+function getArticleTemplateSnippet(template) {
+  return {
+    heading: '## 小标题',
+    quote: '> 引文内容',
+    capsule: '[引用 Capsule]\ncapsuleId: capsule-',
+    canvas: '[引用 Canvas]\ncapsuleId: capsule-'
+  }[template] || '';
+}
+
+function insertArticleTemplate(kind, key, template) {
+  if (kind !== 'article') {
+    return;
+  }
+  const editor = getPlainEditorElement(kind, key || 'composer');
+  const textarea = editor?.querySelector('[data-field="body"]');
+  const snippet = getArticleTemplateSnippet(template);
+  if (!textarea || !snippet) {
+    return;
+  }
+
+  const value = textarea.value || '';
+  const start = textarea.selectionStart ?? value.length;
+  const end = textarea.selectionEnd ?? start;
+  const before = value.slice(0, start);
+  const after = value.slice(end);
+  const prefix = before && !before.endsWith('\n\n') ? (before.endsWith('\n') ? '\n' : '\n\n') : '';
+  const suffix = after && !after.startsWith('\n\n') ? (after.startsWith('\n') ? '\n' : '\n\n') : '';
+  const insertion = `${prefix}${snippet}${suffix}`;
+  textarea.value = `${before}${insertion}${after}`;
+  const cursor = before.length + insertion.length;
+  textarea.focus();
+  textarea.setSelectionRange(cursor, cursor);
+  autoResizeTextarea(textarea, 88);
 }
 
 function createPlainExtraFrontmatter(kind, values) {
@@ -3410,6 +3465,9 @@ function handleClick(event) {
     }
     case 'issue-remove-capsule':
       removeIssueBlock(actionTarget.dataset.owner || 'composer', actionTarget.dataset.blockId);
+      break;
+    case 'article-insert-template':
+      insertArticleTemplate(kind, key, actionTarget.dataset.template || '');
       break;
     case 'plain-save':
       savePlainFromComposer(kind).catch((error) => showToast(error.message, 'error'));

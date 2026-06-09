@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  getArticleBlocks,
   getCapsuleBlocks,
   getCapsuleEmbedPreview,
   parseCapsuleBodyToBlocks,
@@ -116,6 +117,11 @@ function runContentModelSmoke() {
   assert.match(serialized, /\[Canvas\]/);
   assert.match(serialized, /canvasId: canvas-smoke/);
   assert.equal(parseCapsuleBodyToBlocks(serialized, { canvasesById })[0].entry, canvas.entry);
+
+  const articleBlocks = getArticleBlocks({
+    body: 'Intro paragraph.\n\n## A long-form section\n\n> A pull quote.'
+  });
+  assert.deepEqual(articleBlocks.map((block) => block.type), ['paragraph', 'heading', 'quote']);
 }
 
 async function runBrowsePathSmoke() {

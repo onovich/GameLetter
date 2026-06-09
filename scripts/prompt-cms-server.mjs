@@ -515,6 +515,18 @@ function capsulePayloadFromBody(body = '', operation = {}) {
 function blockFromChunk(chunk = '', target = 'issue') {
   const { marker, fields, raw } = parseStructuredChunk(chunk);
 
+  if (target === 'article') {
+    const headingMatch = raw.match(/^#{2,3}\s+(.+)$/s);
+    if (headingMatch) {
+      return { type: 'heading', content: headingMatch[1].trim() };
+    }
+
+    const quoteMatch = raw.match(/^>\s?(.+)$/s);
+    if (quoteMatch) {
+      return { type: 'quote', content: quoteMatch[1].trim() };
+    }
+  }
+
   if (marker === '[引用 Capsule]' || marker === '[Capsule]' || marker === '[引用 capsule]') {
     const capsuleId = fields.capsuleId || fields.id || '';
     return capsuleId ? { type: 'capsule-ref', capsuleId } : { type: target === 'article' ? 'paragraph' : 'note', content: raw };

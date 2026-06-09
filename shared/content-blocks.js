@@ -237,7 +237,7 @@ export function normalizeArticleBlock(block, options = {}) {
     return null;
   }
   if (typeof block === 'string') {
-    return { type: 'paragraph', content: block };
+    return parseArticleChunkToBlock(block, options);
   }
 
   const type = String(block.type || '').trim();
@@ -248,6 +248,40 @@ export function normalizeArticleBlock(block, options = {}) {
     return { type: 'canvas-ref', capsuleId: block.capsuleId };
   }
   return normalizeIssueBlock(block, options);
+}
+
+export function parseArticleChunkToBlock(chunk = '', options = {}) {
+  const raw = String(chunk || '').trim();
+  if (!raw) {
+    return null;
+  }
+
+  const headingMatch = raw.match(/^#{2,3}\s+(.+)$/s);
+  if (headingMatch) {
+    return { type: 'heading', content: headingMatch[1].trim() };
+  }
+
+  const quoteMatch = raw.match(/^>\s?(.+)$/s);
+  if (quoteMatch) {
+    return { type: 'quote', content: quoteMatch[1].trim() };
+  }
+
+  const issueBlock = parseIssueChunkToBlock(raw, options);
+  if (!issueBlock) {
+    return null;
+  }
+  if (issueBlock.type === 'note') {
+    return { type: 'paragraph', content: issueBlock.content || '' };
+  }
+  return issueBlock;
+}
+
+export function parseArticleBodyToBlocks(body = '', options = {}) {
+  const blocks = normalizeLineEndings(body)
+    .split(/\n{2,}/)
+    .map((chunk) => parseArticleChunkToBlock(chunk, options))
+    .filter(Boolean);
+  return blocks.length ? blocks : [];
 }
 
 export function getCapsuleBlocks(capsule = {}, options = {}) {
@@ -372,10 +406,7 @@ export function getArticleBlocks(article = {}, options = {}) {
     return [];
   }
 
-  return normalizeLineEndings(body)
-    .split(/\n{2,}/)
-    .map((chunk) => ({ type: 'paragraph', content: chunk.trim() }))
-    .filter((block) => block.content);
+  return parseArticleBodyToBlocks(body, options);
 }
 
 export function getCapsuleTextFromBlocks(blocks = []) {

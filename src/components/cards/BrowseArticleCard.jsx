@@ -3,7 +3,20 @@ import { renderText } from '../../content/text';
 import { cardMotion } from '../../view/animations';
 import { ArticleContent } from './ArticleContent';
 
+function getArticleReadingMinutes(article) {
+  const blockText = (article.blocks || [])
+    .map((block) => block.content || block.text || block.title || block.capsuleId || '')
+    .join(' ');
+  const compact = [article.title, article.summary, article.body, article.content, blockText]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, '');
+  return Math.max(1, Math.ceil(compact.length / 500));
+}
+
 export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById, canvasesById }) {
+  const readingMinutes = getArticleReadingMinutes(article);
+
   return (
     <motion.article {...cardMotion} className={`article-card published ${active ? 'active' : ''}`}>
       <div className="item-head">
@@ -13,6 +26,7 @@ export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle,
           </button>
           <div className="item-meta">
             {columnTitle ? <span className="hint item-timestamp">{renderText(columnTitle)}</span> : null}
+            <span className="hint item-timestamp article-read-time">约 {readingMinutes} 分钟</span>
             <span className="hint item-timestamp">{article.dateLabel}</span>
           </div>
         </div>
