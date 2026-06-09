@@ -1,6 +1,13 @@
 const PAGE_SIZE = 20;
 const SETTINGS_STORAGE_KEY = 'prompt-cms-style-settings';
 const SETTINGS_DEFAULT_STORAGE_KEY = 'prompt-cms-style-default-settings';
+const editorModes = [
+  { key: 'issue', label: 'Issue' },
+  { key: 'capsule', label: 'Capsule' },
+  { key: 'flow', label: 'Flow' },
+  { key: 'article', label: 'Article' },
+  { key: 'canvas', label: 'Canvas' }
+];
 
 const defaultSettings = {
   shellPadding: 28,
@@ -30,6 +37,9 @@ const defaultSettings = {
   accentColor: '#74a7f7',
   capsuleTabColor: '#74a7f7',
   issueTabColor: '#86cbbf',
+  flowTabColor: '#f59e0b',
+  articleTabColor: '#8b5cf6',
+  canvasTabColor: '#14b8a6',
   linkColor: '#2f6fb2',
   linkBorderColor: '#bcd2ea',
   linkBgColor: '#f6fbff',
@@ -148,8 +158,8 @@ const elements = {
 };
 
 const state = {
-  mode: 'capsule',
-  dataSource: { capsules: [], issues: [], features: {} },
+  mode: 'issue',
+  dataSource: { capsules: [], issues: [], flows: [], articles: [], columns: [], canvases: [], features: {} },
   inboxFiles: [],
   draggingBlockId: null,
   draggingContext: null,
@@ -175,6 +185,9 @@ const state = {
     open: false,
     title: '',
     fields: [],
+    variant: '',
+    query: '',
+    selectedCanvasId: '',
     resolve: null
   },
   settings: loadStoredSettings(),
@@ -201,6 +214,24 @@ const state = {
       editTitles: {},
       editBlocks: {},
       focusTarget: ''
+    },
+    flow: {
+      page: 1,
+      search: '',
+      activeTags: [],
+      editing: {}
+    },
+    article: {
+      page: 1,
+      search: '',
+      activeTags: [],
+      editing: {}
+    },
+    canvas: {
+      page: 1,
+      search: '',
+      activeTags: [],
+      editing: {}
     }
   }
 };
@@ -288,6 +319,9 @@ function applySettingsTheme() {
   root.style.setProperty('--accent', settings.accentColor);
   root.style.setProperty('--capsule-tab-color', settings.capsuleTabColor);
   root.style.setProperty('--issue-tab-color', settings.issueTabColor);
+  root.style.setProperty('--flow-tab-color', settings.flowTabColor);
+  root.style.setProperty('--article-tab-color', settings.articleTabColor);
+  root.style.setProperty('--canvas-tab-color', settings.canvasTabColor);
   root.style.setProperty('--text', settings.textColor);
   root.style.setProperty('--issue-body-color', settings.issueBodyColor);
   root.style.setProperty('--capsule-body-color', settings.capsuleBodyColor);
@@ -414,6 +448,35 @@ function renderCommandDialog() {
   elements.commandDialog.classList.remove('hidden');
   elements.commandDialog.setAttribute('aria-hidden', 'false');
   elements.commandDialogTitle.textContent = state.commandDialog.title || '插入内容';
+
+  if (state.commandDialog.variant === 'canvas-picker') {
+    const query = state.commandDialog.query || '';
+    const candidates = getCanvasCandidates(query);
+    elements.commandDialogBody.innerHTML = `
+      <div class="action-dialog-field">
+        <label for="command-field-canvas-query">Canvas 名称</label>
+        <input id="command-field-canvas-query" data-canvas-picker-query type="text" value="${escapeHtml(query)}" placeholder="输入名称检索 Canvas" />
+      </div>
+      <div class="canvas-picker-list">
+        ${candidates.length ? candidates.map((item) => `
+          <button class="canvas-picker-item ${state.commandDialog.selectedCanvasId === item.sourceId ? 'active' : ''}" type="button" data-action="canvas-picker-select" data-value="${escapeHtml(item.sourceId)}">
+            <strong>${escapeHtml(item.title || 'Canvas')}</strong>
+            <small>${escapeHtml(item.text || item.entry || '')}</small>
+          </button>
+        `).join('') : '<p class="hint">没有找到匹配的 Canvas。</p>'}
+      </div>
+    `;
+
+    requestAnimationFrame(() => {
+      const input = elements.commandDialogBody.querySelector('[data-canvas-picker-query]');
+      if (input) {
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    });
+    return;
+  }
+
   elements.commandDialogBody.innerHTML = state.commandDialog.fields.map((field) => `
     <div class="action-dialog-field">
       <label for="command-field-${field.key}">${escapeHtml(field.label)}</label>
@@ -432,6 +495,24 @@ function openCommandDialog({ title = '插入内容', fields = [] } = {}) {
       open: true,
       title,
       fields: fields.map((field) => ({ ...field })),
+      variant: '',
+      query: '',
+      selectedCanvasId: '',
+      resolve
+    };
+    renderCommandDialog();
+  });
+}
+
+function openCanvasPickerDialog(initialQuery = '') {
+  return new Promise((resolve) => {
+    state.commandDialog = {
+      open: true,
+      title: '选择 Canvas',
+      fields: [],
+      variant: 'canvas-picker',
+      query: initialQuery,
+      selectedCanvasId: '',
       resolve
     };
     renderCommandDialog();
@@ -444,6 +525,9 @@ function closeCommandDialog(result = null) {
     open: false,
     title: '',
     fields: [],
+    variant: '',
+    query: '',
+    selectedCanvasId: '',
     resolve: null
   };
   renderCommandDialog();
@@ -453,6 +537,13 @@ function closeCommandDialog(result = null) {
 }
 
 function confirmCommandDialog() {
+  if (state.commandDialog.variant === 'canvas-picker') {
+    const candidates = getCanvasCandidates(state.commandDialog.query || '');
+    const selected = candidates.find((item) => item.sourceId === state.commandDialog.selectedCanvasId) || candidates[0] || null;
+    closeCommandDialog(selected);
+    return;
+  }
+
   const values = {};
   elements.commandDialogBody?.querySelectorAll('[data-command-field]').forEach((input) => {
     values[input.dataset.commandField] = input.value;
@@ -475,6 +566,20 @@ function createImageBlock(url = '', caption = '') {
 
 function createLinkBlock(text = '', url = '') {
   return { id: uid('link'), type: 'link', text, url };
+}
+
+function createCanvasBlock(canvas = {}) {
+  return {
+    id: uid('canvas'),
+    type: 'canvas',
+    canvasId: canvas.id || canvas.canvasId || '',
+    entry: canvas.entry || canvas.src || canvas.url || '',
+    title: canvas.title || 'Canvas',
+    caption: canvas.summary || canvas.caption || '',
+    aspectRatio: canvas.aspectRatio || '16 / 9',
+    allowFullscreen: canvas.allowFullscreen !== false,
+    tags: canvas.tags || []
+  };
 }
 
 function createEmptyIssueEditor() {
@@ -525,6 +630,9 @@ function getCapsuleTextFromBlocks(blocks = []) {
       }
       if (block.type === 'link') {
         return block.text || block.url || '';
+      }
+      if (block.type === 'canvas') {
+        return [block.title, block.caption, block.entry].filter(Boolean).join(' ');
       }
       return block.title || block.text || '';
     })
@@ -642,6 +750,18 @@ function parseChunkToBlock(chunk = '', capsuleMap = new Map()) {
     return createLinkBlock(fields.text || fields.title || fields.url || '', fields.url || '');
   }
 
+  if (marker === '[Canvas]') {
+    return createCanvasBlock({
+      id: fields.canvasId || fields.id || '',
+      title: fields.title || fields.name || 'Canvas',
+      summary: fields.caption || fields.summary || '',
+      entry: fields.entry || fields.src || fields.url || '',
+      aspectRatio: fields.aspectRatio || '16 / 9',
+      allowFullscreen: fields.allowFullscreen !== 'false',
+      tags: parseTagList(fields.tags || '')
+    });
+  }
+
   if (marker === '[引用 Capsule]') {
     const capsuleId = String(fields.capsuleId || '').trim();
     if (!capsuleId) {
@@ -701,6 +821,20 @@ function normalizePublishedCapsuleBlock(block) {
     return url || text ? createLinkBlock(text, url) : null;
   }
 
+  if (type === 'canvas' || type === 'canvas-ref') {
+    const canvasId = String(block.canvasId || block.id || '').trim();
+    const canvas = canvasId ? getCanvasMap().get(canvasId) : null;
+    return createCanvasBlock({
+      ...(canvas || {}),
+      id: canvasId || canvas?.id || '',
+      title: block.title || block.label || canvas?.title || 'Canvas',
+      summary: block.caption || block.summary || canvas?.summary || '',
+      entry: block.entry || block.src || block.url || canvas?.entry || '',
+      aspectRatio: block.aspectRatio || canvas?.aspectRatio || '16 / 9',
+      allowFullscreen: block.allowFullscreen !== false
+    });
+  }
+
   if (type === 'text' || type === 'note' || type === 'thought') {
     return createTextBlock(block.text || block.content || '');
   }
@@ -728,6 +862,18 @@ function serializeCapsuleBlocks(blocks = []) {
           `text: ${String(block.text || '').trim()}`,
           `url: ${String(block.url || '').trim()}`
         ].join('\n').trim();
+      }
+      if (block.type === 'canvas') {
+        return [
+          '[Canvas]',
+          `canvasId: ${String(block.canvasId || '').trim()}`,
+          `title: ${String(block.title || '').trim()}`,
+          `entry: ${String(block.entry || '').trim()}`,
+          `aspectRatio: ${String(block.aspectRatio || '16 / 9').trim()}`,
+          `allowFullscreen: ${block.allowFullscreen !== false}`,
+          `caption: ${String(block.caption || '').trim()}`,
+          block.tags?.length ? `tags: ${block.tags.join(', ')}` : ''
+        ].filter(Boolean).join('\n').trim();
       }
       return String(block.text || '').trim();
     })
@@ -761,6 +907,20 @@ function getPublishedCapsuleBlocks(capsule) {
   }
 
   const blocks = [];
+
+  if (payload.type === 'canvas') {
+    const canvas = payload.canvasId ? getCanvasMap().get(payload.canvasId) : null;
+    return [createCanvasBlock({
+      ...(canvas || {}),
+      id: payload.canvasId || canvas?.id || '',
+      title: payload.title || capsule.title || canvas?.title || 'Canvas',
+      summary: payload.caption || payload.commentary || capsule.summary || canvas?.summary || '',
+      entry: payload.entry || payload.src || payload.url || canvas?.entry || '',
+      aspectRatio: payload.aspectRatio || canvas?.aspectRatio || '16 / 9',
+      allowFullscreen: payload.allowFullscreen !== false,
+      tags: capsule.tags || canvas?.tags || []
+    })];
+  }
 
   if (payload.type === 'image' && payload.url) {
     blocks.push(createImageBlock(payload.url, payload.caption || capsule.title || ''));
@@ -949,31 +1109,32 @@ function formatFlowTime(item) {
 function renderModeNavigation() {
   if (!elements.modeNav.querySelector('.mode-tabs')) {
     elements.modeNav.innerHTML = `
-      <section class="card nav-card">
-        <nav class="mode-tabs" aria-label="编辑模式切换">
-          <span class="mode-tab-indicator" aria-hidden="true"></span>
-          <button id="tabCapsule" class="mode-tab" type="button">Capsule</button>
-          <button id="tabIssue" class="mode-tab" type="button">Issue</button>
-        </nav>
-      </section>
+      <nav class="mode-tabs" aria-label="编辑模式切换">
+        <span class="mode-tab-indicator" aria-hidden="true"></span>
+        ${editorModes.map((mode) => `<button class="mode-tab" type="button" data-mode-tab="${mode.key}">${mode.label}</button>`).join('')}
+      </nav>
     `;
-    elements.tabCapsule = document.getElementById('tabCapsule');
-    elements.tabIssue = document.getElementById('tabIssue');
   }
 
   const modeTabs = elements.modeNav.querySelector('.mode-tabs');
   if (!modeTabs) {
     return;
   }
-  modeTabs.classList.toggle('capsule-active', state.mode === 'capsule');
-  modeTabs.classList.toggle('issue-active', state.mode === 'issue');
+  editorModes.forEach((mode) => {
+    modeTabs.classList.toggle(`${mode.key}-active`, state.mode === mode.key);
+  });
   modeTabs.dataset.mode = state.mode;
-  elements.tabCapsule?.classList.toggle('active', state.mode === 'capsule');
-  elements.tabIssue?.classList.toggle('active', state.mode === 'issue');
+  modeTabs.querySelectorAll('[data-mode-tab]').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.modeTab === state.mode);
+  });
 }
 
 function getCapsuleMap() {
   return new Map((state.dataSource.capsules || []).map((item) => [item.id, item]));
+}
+
+function getCanvasMap() {
+  return new Map((state.dataSource.canvases || []).map((item) => [item.id, item]));
 }
 
 function getPublishedCapsuleText(capsule) {
@@ -1108,6 +1269,10 @@ function getIssueDrafts() {
   return state.inboxFiles.filter((file) => file.kind === 'issue').sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
 }
 
+function getModeDrafts(kind) {
+  return state.inboxFiles.filter((file) => file.kind === kind).sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
+}
+
 function buildCapsuleItems() {
   const drafts = getCapsuleDrafts();
   const published = [...(state.dataSource.capsules || [])].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
@@ -1232,6 +1397,173 @@ function buildIssueItems() {
   return tagFiltered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+function articleBlocksToPlainText(blocks = []) {
+  return blocks
+    .map((block) => {
+      if (!block) {
+        return '';
+      }
+      if (typeof block === 'string') {
+        return block;
+      }
+      if (block.type === 'heading') {
+        return `## ${block.content || block.text || ''}`;
+      }
+      if (block.type === 'quote') {
+        return `> ${block.content || block.text || ''}`;
+      }
+      if (block.type === 'capsule-ref') {
+        return `[引用 Capsule]\ncapsuleId: ${block.capsuleId || ''}`;
+      }
+      if (block.type === 'canvas-ref') {
+        return `[引用 Canvas]\ncanvasId: ${block.canvasId || block.capsuleId || ''}`;
+      }
+      return block.content || block.text || '';
+    })
+    .filter((value) => String(value || '').trim())
+    .join('\n\n');
+}
+
+function getPlainModeConfig(kind) {
+  return {
+    flow: {
+      collection: 'flows',
+      cardClass: 'flow-card',
+      title: 'Flow',
+      composerTitle: '写一条 Flow',
+      primaryFieldLabel: '正文',
+      primaryFieldPlaceholder: '写一点纯文本碎碎念。',
+      saveLabel: '保存 Flow',
+      searchPlaceholder: '搜索 Flow',
+      bodyFromPublished: (item) => item.body || item.content || item.summary || '',
+      summaryFromPublished: (item) => item.summary || ''
+    },
+    article: {
+      collection: 'articles',
+      cardClass: 'article-card',
+      title: 'Article',
+      composerTitle: '写一篇 Article',
+      primaryFieldLabel: '长文正文',
+      primaryFieldPlaceholder: '写长文正文。可用空行分段，后续会升级为块编辑。',
+      saveLabel: '保存 Article',
+      searchPlaceholder: '搜索 Article',
+      bodyFromPublished: (item) => item.body || item.content || articleBlocksToPlainText(item.blocks || []),
+      summaryFromPublished: (item) => item.summary || ''
+    },
+    canvas: {
+      collection: 'canvases',
+      cardClass: 'canvas-card',
+      title: 'Canvas',
+      composerTitle: '添加 Canvas',
+      primaryFieldLabel: '说明',
+      primaryFieldPlaceholder: '写一句这个 Canvas 可以演示什么。',
+      saveLabel: '保存 Canvas',
+      searchPlaceholder: '搜索 Canvas',
+      bodyFromPublished: (item) => item.summary || item.description || '',
+      summaryFromPublished: (item) => item.summary || item.description || ''
+    }
+  }[kind];
+}
+
+function buildPlainModeItems(kind) {
+  const config = getPlainModeConfig(kind);
+  if (!config) {
+    return [];
+  }
+  const drafts = getModeDrafts(kind);
+  const published = [...(state.dataSource[config.collection] || [])].sort((a, b) => new Date(b.publishedAt || b.id) - new Date(a.publishedAt || a.id));
+  const overlayMap = new Map();
+
+  drafts.filter((draft) => draft.target && draft.target !== 'auto').forEach((draft) => {
+    if (!overlayMap.has(draft.target)) {
+      overlayMap.set(draft.target, draft);
+    }
+  });
+
+  const draftItems = drafts.filter((draft) => !draft.target || draft.target === 'auto').map((draft) => ({
+    key: `draft:${draft.fileName}`,
+    fileName: draft.fileName,
+    id: '',
+    title: draft.title || `未命名 ${config.title}`,
+    summary: draft.frontmatter.summary || draft.body.slice(0, 100),
+    body: draft.body || '',
+    tags: draft.tags || [],
+    status: draft.status,
+    createdAt: draft.createdAt,
+    updatedAt: draft.modifiedAt,
+    isPublished: false,
+    columnId: draft.frontmatter.columnId || '',
+    entry: draft.frontmatter.entry || '',
+    aspectRatio: draft.frontmatter.aspectRatio || '16 / 9',
+    allowFullscreen: draft.frontmatter.allowFullscreen !== 'false'
+  }));
+
+  const publishedItems = published.map((item) => {
+    const draft = overlayMap.get(item.id);
+    const body = draft && draft.status === 'pendingRefresh' ? draft.body : config.bodyFromPublished(item);
+    return {
+      key: item.id,
+      fileName: draft?.fileName || '',
+      id: item.id,
+      title: draft && draft.status === 'pendingRefresh' ? (draft.title || item.title) : item.title,
+      summary: draft && draft.status === 'pendingRefresh' ? (draft.frontmatter.summary || draft.body.slice(0, 100)) : config.summaryFromPublished(item),
+      body,
+      tags: draft?.tags?.length ? draft.tags : (item.tags || []),
+      status: draft ? draft.status : 'published',
+      createdAt: resolveItemCreatedAt(item.publishedAt, draft?.createdAt),
+      updatedAt: draft?.modifiedAt || item.publishedAt,
+      isPublished: true,
+      columnId: draft?.frontmatter?.columnId || item.columnId || '',
+      entry: draft?.frontmatter?.entry || item.entry || item.src || item.url || '',
+      aspectRatio: draft?.frontmatter?.aspectRatio || item.aspectRatio || '16 / 9',
+      allowFullscreen: draft?.frontmatter?.allowFullscreen !== 'false' && item.allowFullscreen !== false
+    };
+  });
+
+  const items = [...draftItems, ...publishedItems];
+  const query = (state.ui[kind]?.search || '').trim().toLowerCase();
+  const searched = !query
+    ? items
+    : items.filter((item) => `${item.title} ${item.summary} ${item.body} ${item.entry} ${(item.tags || []).join(' ')}`.toLowerCase().includes(query));
+  const selectedTags = state.ui[kind]?.activeTags || [];
+  const tagFiltered = !selectedTags.length
+    ? searched
+    : searched.filter((item) => (item.tags || []).some((tag) => selectedTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase())));
+  return tagFiltered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function buildFlowItems() {
+  return buildPlainModeItems('flow');
+}
+
+function buildArticleItems() {
+  return buildPlainModeItems('article');
+}
+
+function buildCanvasItems() {
+  const items = buildPlainModeItems('canvas');
+  if (items.length) {
+    return items;
+  }
+  return (state.dataSource.capsules || [])
+    .filter((capsule) => capsule.payload?.type === 'canvas')
+    .map((capsule) => ({
+      key: capsule.payload.canvasId || capsule.id,
+      id: capsule.payload.canvasId || capsule.id,
+      title: capsule.title,
+      summary: capsule.summary || capsule.payload.caption || '',
+      body: capsule.summary || capsule.payload.caption || '',
+      tags: capsule.tags || [],
+      status: 'published',
+      createdAt: capsule.publishedAt,
+      updatedAt: capsule.publishedAt,
+      isPublished: true,
+      entry: capsule.payload.entry || capsule.payload.src || capsule.payload.url || '',
+      aspectRatio: capsule.payload.aspectRatio || '16 / 9',
+      allowFullscreen: capsule.payload.allowFullscreen !== false
+    }));
+}
+
 function getRecentTags(limit = 5) {
   const recent = [];
   const addTag = (tag) => {
@@ -1245,8 +1577,12 @@ function getRecentTags(limit = 5) {
   [...(state.dataSource.issues || [])]
     .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
     .forEach((issue) => (issue.tags || []).forEach(addTag));
+  [...(state.dataSource.flows || []), ...(state.dataSource.articles || []), ...(state.dataSource.canvases || [])]
+    .sort((a, b) => new Date(b.publishedAt || b.id) - new Date(a.publishedAt || a.id))
+    .forEach((item) => (item.tags || []).forEach(addTag));
   getCapsuleDrafts().forEach((draft) => draft.tags.forEach(addTag));
   getIssueDrafts().forEach((draft) => draft.tags.forEach(addTag));
+  ['flow', 'article', 'canvas'].forEach((kind) => getModeDrafts(kind).forEach((draft) => draft.tags.forEach(addTag)));
   return recent.slice(0, limit);
 }
 
@@ -1259,8 +1595,12 @@ function getAllTags() {
   };
   (state.dataSource.capsules || []).forEach((capsule) => (capsule.tags || []).forEach(addTag));
   (state.dataSource.issues || []).forEach((issue) => (issue.tags || []).forEach(addTag));
+  (state.dataSource.flows || []).forEach((flow) => (flow.tags || []).forEach(addTag));
+  (state.dataSource.articles || []).forEach((article) => (article.tags || []).forEach(addTag));
+  (state.dataSource.canvases || []).forEach((canvas) => (canvas.tags || []).forEach(addTag));
   getCapsuleDrafts().forEach((draft) => draft.tags.forEach(addTag));
   getIssueDrafts().forEach((draft) => draft.tags.forEach(addTag));
+  ['flow', 'article', 'canvas'].forEach((kind) => getModeDrafts(kind).forEach((draft) => draft.tags.forEach(addTag)));
   return tags;
 }
 
@@ -1275,6 +1615,20 @@ function getTagCounts() {
 function getIssueTagCounts() {
   const counts = new Map();
   buildIssueItems().forEach((item) => {
+    (item.tags || []).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1));
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function getModeTagCounts(kind) {
+  if (kind === 'capsule') {
+    return getTagCounts();
+  }
+  if (kind === 'issue') {
+    return getIssueTagCounts();
+  }
+  const counts = new Map();
+  buildPlainModeItems(kind).forEach((item) => {
     (item.tags || []).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1));
   });
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
@@ -1324,6 +1678,24 @@ function getCapsuleCandidates(query = '') {
     .filter((item) => `${item.title} ${item.text} ${(item.tags || []).join(' ')}`.toLowerCase().includes(normalizedQuery))
     .slice(0, 8)
     .map((item) => ({ id: item.id || item.fileName, title: item.title, text: item.text, tags: item.tags, sourceId: item.id }));
+}
+
+function getCanvasCandidates(query = '') {
+  const normalizedQuery = query.trim().toLowerCase();
+  const items = buildCanvasItems().filter((item) => item.status !== 'pendingDelete' && item.entry);
+  const filtered = normalizedQuery
+    ? items.filter((item) => `${item.title} ${item.summary} ${item.body} ${item.entry} ${(item.tags || []).join(' ')}`.toLowerCase().includes(normalizedQuery))
+    : items;
+  return filtered.slice(0, 8).map((item) => ({
+    id: item.id || item.key,
+    title: item.title,
+    text: item.summary || item.body || item.entry,
+    tags: item.tags,
+    sourceId: item.id || item.key,
+    entry: item.entry,
+    aspectRatio: item.aspectRatio,
+    allowFullscreen: item.allowFullscreen
+  }));
 }
 
 function paginate(items, page) {
@@ -1483,7 +1855,8 @@ function updateSlashSuggestion(textarea, targetKey) {
   const options = (textarea.matches('[data-capsule-text-target]')
     ? [
         { id: 'image', description: '插入图片并输入链接' },
-        { id: 'link', description: '插入链接卡片并填写标题与地址' }
+        { id: 'link', description: '插入链接卡片并填写标题与地址' },
+        { id: 'canvas', description: '检索并插入一个 Canvas' }
       ]
     : [
         { id: 'link', description: '插入链接卡片并填写标题与地址' }
@@ -1696,6 +2069,42 @@ async function insertCapsuleLinkFromCommand(owner, blockId) {
   hideSuggestion();
 }
 
+async function insertCapsuleCanvasFromCommand(owner, blockId) {
+  const suggestionSnapshot = { ...state.suggestion };
+  const canvas = await openCanvasPickerDialog();
+  if (!canvas) {
+    hideSuggestion();
+    return;
+  }
+  const blocks = [...getCapsuleEditorBlocks(owner)];
+  const blockIndex = blocks.findIndex((block) => block.id === blockId);
+  if (blockIndex === -1) {
+    hideSuggestion();
+    return;
+  }
+
+  const textBlock = blocks[blockIndex];
+  const cleanedText = `${textBlock.text.slice(0, suggestionSnapshot.start)}${textBlock.text.slice(suggestionSnapshot.end)}`.trim();
+  const nextBlocks = [];
+  blocks.forEach((block, index) => {
+    if (index !== blockIndex) {
+      nextBlocks.push(block);
+      return;
+    }
+    if (cleanedText) {
+      nextBlocks.push({ ...block, text: cleanedText });
+    }
+    nextBlocks.push(createCanvasBlock(canvas));
+    const trailingTextBlock = createTextBlock('');
+    nextBlocks.push(trailingTextBlock);
+    state.ui.capsule.focusTarget = `${owner}:${trailingTextBlock.id}`;
+  });
+
+  setCapsuleEditorBlocks(owner, nextBlocks);
+  renderCapsuleWorkspace();
+  hideSuggestion();
+}
+
 async function insertIssueLinkFromCommand(owner, blockId) {
   const suggestionSnapshot = { ...state.suggestion };
   const link = await collectLinkBlockInput();
@@ -1740,6 +2149,10 @@ async function applySlashSuggestion(commandId) {
   }
   if (commandId === 'image' && textarea.matches('[data-capsule-text-target]')) {
     await insertCapsuleImageFromCommand(owner, blockId);
+    return;
+  }
+  if (commandId === 'canvas' && textarea.matches('[data-capsule-text-target]')) {
+    await insertCapsuleCanvasFromCommand(owner, blockId);
     return;
   }
   if (commandId === 'link') {
@@ -1954,6 +2367,36 @@ function renderLinkPreviewMarkup(block, options = {}) {
   `;
 }
 
+function normalizeCanvasEntry(entry = '') {
+  const value = String(entry || '').trim();
+  if (!value || /^https?:\/\//i.test(value)) {
+    return value;
+  }
+  return `/${value.replace(/^\/+/, '')}`;
+}
+
+function renderCanvasPreviewMarkup(block) {
+  const entry = normalizeCanvasEntry(block.entry);
+  if (!entry) {
+    return '<div class="canvas-block-preview empty"><div class="canvas-frame-wrap"><div class="image-placeholder">Canvas 入口未填写</div></div></div>';
+  }
+  return `
+    <div class="canvas-block-preview">
+      <div class="canvas-frame-wrap" style="aspect-ratio: ${escapeHtml(block.aspectRatio || '16 / 9')}">
+        ${block.allowFullscreen !== false ? `<a class="canvas-fullscreen-link" href="${escapeHtml(entry)}" target="_blank" rel="noreferrer noopener" aria-label="全屏打开 Canvas">全屏打开</a>` : ''}
+        <iframe
+          class="canvas-frame"
+          src="${escapeHtml(entry)}"
+          title="${escapeHtml(block.title || 'Canvas')}"
+          loading="lazy"
+          allow="fullscreen"
+          sandbox="allow-scripts allow-pointer-lock allow-popups"
+        ></iframe>
+      </div>
+    </div>
+  `;
+}
+
 function refreshImagePreview(container, block) {
   if (!container || !block) {
     return;
@@ -2092,7 +2535,7 @@ async function refreshInbox() {
   state.inboxFiles = result.files.map(normalizeInboxFile);
 }
 
-async function saveTask({ kind, action, target = 'auto', title = '', body, fileName = '', tags = [], createdAt = '' }) {
+async function saveTask({ kind, action, target = 'auto', title = '', body, fileName = '', tags = [], createdAt = '', extraFrontmatter = {} }) {
   const finalName = generateAutoFileName(kind, title || body, fileName);
   const stableCreatedAt = createdAt || new Date().toISOString();
   if (target && target !== 'auto') {
@@ -2108,7 +2551,8 @@ async function saveTask({ kind, action, target = 'auto', title = '', body, fileN
       target,
       title: title || undefined,
       tags: tags.length ? tags.join(', ') : undefined,
-      createdAt: stableCreatedAt
+      createdAt: stableCreatedAt,
+      ...extraFrontmatter
     },
     body
   );
@@ -2137,6 +2581,9 @@ function renderCapsuleDisplayBlocks(blocks, expanded = false) {
     if (block.type === 'link') {
       return renderLinkPreviewMarkup(block);
     }
+    if (block.type === 'canvas') {
+      return renderCanvasPreviewMarkup(block);
+    }
     const collapsed = capsuleNeedsCollapse(block.text) && !expanded;
     return `<div class="capsule-content ${collapsed ? 'collapsed' : ''}">${renderTextContent(block.text || '')}</div>`;
   }).join('');
@@ -2144,16 +2591,22 @@ function renderCapsuleDisplayBlocks(blocks, expanded = false) {
 
 function renderCapsulePreviewBlocks(blocks = [], fallbackText = '') {
   const previewBlocks = [];
-  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link');
+  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link' || block.type === 'canvas');
   const firstText = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
 
   if (firstMedia) {
-    previewBlocks.push(firstMedia.type === 'image' ? renderImagePreviewMarkup(firstMedia) : renderLinkPreviewMarkup(firstMedia));
+    if (firstMedia.type === 'image') {
+      previewBlocks.push(renderImagePreviewMarkup(firstMedia));
+    } else if (firstMedia.type === 'canvas') {
+      previewBlocks.push(renderCanvasPreviewMarkup(firstMedia));
+    } else {
+      previewBlocks.push(renderLinkPreviewMarkup(firstMedia));
+    }
   }
 
   if (firstText) {
     previewBlocks.push(`<div class="capsule-content collapsed">${renderTextContent(firstText.text || '')}</div>`);
-  } else if (String(fallbackText || '').trim()) {
+  } else if (firstMedia?.type !== 'canvas' && String(fallbackText || '').trim()) {
     previewBlocks.push(`<div class="capsule-content collapsed">${renderTextContent(fallbackText)}</div>`);
   }
 
@@ -2201,6 +2654,18 @@ function renderCapsuleEditorBlocks(owner, blocks) {
         </div>
       `;
     }
+    if (block.type === 'canvas') {
+      return `
+        ${dropZone}
+        <div class="capsule-block canvas-block draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="capsule" data-drag-owner="${owner}">
+          ${renderCanvasPreviewMarkup(block)}
+          <div class="image-inline-actions">
+            <span class="hint">${renderTextContent(block.title || 'Canvas')}</span>
+            <button class="ghost small danger" data-action="capsule-remove-block" data-owner="${owner}" data-block-id="${block.id}">删除</button>
+          </div>
+        </div>
+      `;
+    }
     return `
       ${dropZone}
       <div class="capsule-block text-block-row">
@@ -2217,7 +2682,9 @@ function renderCapsuleCard(item) {
   const editing = Boolean(state.ui.capsule.editing[item.key]);
   const blocks = editing ? getCapsuleEditorBlocks(item.key) : item.blocks;
   const tags = editing ? extractCapsuleTagsFromBlocks(blocks) : (item.tags || []);
-  const previewText = editing ? '' : getCapsulePreviewText(blocks, item.text);
+  const hasCanvasBlock = blocks.some((block) => block.type === 'canvas');
+  const previewFallbackText = hasCanvasBlock ? '' : item.text;
+  const previewText = editing ? '' : getCapsulePreviewText(blocks, previewFallbackText);
   return `
     <article class="capsule-card ${item.status}">
       <div class="item-head">
@@ -2243,7 +2710,7 @@ function renderCapsuleCard(item) {
         </div>
       ` : `
         ${previewText ? `<div class="capsule-preview-body collapsed">${renderTextContent(previewText)}</div>` : ''}
-        <div class="capsule-render-stack">${expanded ? renderCapsuleDisplayBlocks(blocks, true) : renderCapsulePreviewBlocks(blocks, item.text)}</div>
+        <div class="capsule-render-stack">${expanded ? renderCapsuleDisplayBlocks(blocks, true) : renderCapsulePreviewBlocks(blocks, previewFallbackText)}</div>
         <div class="card-bottom-row">
           <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${state.ui.capsule.activeTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="capsule-filter-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
           <div class="card-tools">
@@ -2514,13 +2981,292 @@ function renderIssueWorkspace() {
   });
 }
 
+function renderPlainEditorForm(kind, item = null) {
+  const config = getPlainModeConfig(kind);
+  const key = item?.key || 'composer';
+  const isCanvas = kind === 'canvas';
+  const isArticle = kind === 'article';
+  const tags = (item?.tags || []).join(', ');
+  const columns = state.dataSource.columns || [];
+  return `
+    <div class="plain-editor-grid" data-plain-editor-kind="${kind}" data-key="${escapeHtml(key)}">
+      <label>
+        <span>标题</span>
+        <input data-field="title" type="text" value="${escapeHtml(item?.title || '')}" placeholder="输入 ${escapeHtml(config.title)} 标题" />
+      </label>
+      ${isArticle ? `
+        <label>
+          <span>栏目</span>
+          <select data-field="columnId">
+            <option value="">不选择栏目</option>
+            ${columns.map((column) => `<option value="${escapeHtml(column.id)}" ${item?.columnId === column.id ? 'selected' : ''}>${escapeHtml(column.title || column.id)}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <span>摘要</span>
+          <input data-field="summary" type="text" value="${escapeHtml(item?.summary || '')}" placeholder="长文摘要" />
+        </label>
+      ` : ''}
+      ${isCanvas ? `
+        <label>
+          <span>入口 HTML</span>
+          <input data-field="entry" type="text" value="${escapeHtml(item?.entry || '')}" placeholder="/canvases/demo/index.html" />
+        </label>
+        <label>
+          <span>显示比例</span>
+          <input data-field="aspectRatio" type="text" value="${escapeHtml(item?.aspectRatio || '16 / 9')}" placeholder="16 / 9" />
+        </label>
+      ` : ''}
+      <label class="plain-editor-wide">
+        <span>${escapeHtml(config.primaryFieldLabel)}</span>
+        <textarea data-field="body" rows="${isArticle ? 10 : 5}" placeholder="${escapeHtml(config.primaryFieldPlaceholder)}">${escapeHtml(item?.body || '')}</textarea>
+      </label>
+      <label class="plain-editor-wide">
+        <span>Tags</span>
+        <input data-field="tags" type="text" value="${escapeHtml(tags)}" placeholder="TagA, TagB" />
+      </label>
+      ${isCanvas && item?.entry ? `<div class="plain-editor-wide">${renderCanvasPreviewMarkup(item)}</div>` : ''}
+    </div>
+  `;
+}
+
+function renderPlainModeCard(kind, item) {
+  const config = getPlainModeConfig(kind);
+  const editing = Boolean(state.ui[kind]?.editing?.[item.key]);
+  const tags = item.tags || [];
+  return `
+    <article class="${config.cardClass} ${item.status} ${editing ? 'editing' : ''}">
+      <div class="item-head">
+        <div class="item-main">
+          <button class="item-title-trigger" data-action="plain-edit" data-kind="${kind}" data-key="${escapeHtml(item.key)}" type="button">${renderTextContent(item.title || `未命名 ${config.title}`)}</button>
+          <div class="item-meta">
+            <span class="hint item-timestamp">${formatFlowTime(item)}</span>
+          </div>
+        </div>
+        <div class="item-side item-side-compact">
+          <div class="card-status">${renderStatusPill(item.status)}</div>
+        </div>
+      </div>
+      ${editing ? `
+        ${renderPlainEditorForm(kind, item)}
+        <div class="editor-actions">
+          <button data-action="plain-save-edit" data-kind="${kind}" data-key="${escapeHtml(item.key)}">保存</button>
+          <button class="ghost" data-action="plain-cancel-edit" data-kind="${kind}" data-key="${escapeHtml(item.key)}">取消</button>
+        </div>
+      ` : `
+        ${kind === 'canvas' && item.entry ? renderCanvasPreviewMarkup(item) : ''}
+        ${item.summary ? `<div class="issue-summary">${renderTextContent(item.summary)}</div>` : ''}
+        ${item.body && kind !== 'canvas' ? `<div class="flow-body">${normalizeLineEndings(item.body).split(/\n{2,}/).filter(Boolean).slice(0, 3).map((paragraph) => `<p>${renderTextContent(paragraph)}</p>`).join('')}</div>` : ''}
+        <div class="card-bottom-row">
+          <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${(state.ui[kind]?.activeTags || []).some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="plain-filter-tag" data-kind="${kind}" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
+          <div class="card-tools">
+            ${item.status !== 'pendingDelete' ? `<button class="ghost small icon-button compact-tool" data-action="plain-edit" data-kind="${kind}" data-key="${escapeHtml(item.key)}" aria-label="编辑 ${escapeHtml(config.title)}">✎</button>` : ''}
+            <button class="ghost small icon-button compact-tool danger" data-action="plain-delete" data-kind="${kind}" data-key="${escapeHtml(item.key)}" aria-label="删除 ${escapeHtml(config.title)}">${item.status === 'pendingDelete' ? '↺' : '🗑'}</button>
+          </div>
+        </div>
+      `}
+    </article>
+  `;
+}
+
+function renderPlainModeWorkspace(kind) {
+  const config = getPlainModeConfig(kind);
+  renderModeNavigation();
+  const items = kind === 'canvas' ? buildCanvasItems() : buildPlainModeItems(kind);
+  const { currentPage, totalPages, entries } = paginate(items, state.ui[kind].page);
+  state.ui[kind].page = currentPage;
+  const selectedTags = state.ui[kind].activeTags || [];
+
+  elements.modeSubtitle.textContent = '';
+  elements.modePrimary.innerHTML = `
+    <section class="card ${config.cardClass} section-card">
+      <div class="section-head">
+        <h2>${escapeHtml(config.composerTitle)}</h2>
+      </div>
+      ${renderPlainEditorForm(kind)}
+      <div class="composer-actions">
+        <button data-action="plain-save" data-kind="${kind}">${escapeHtml(config.saveLabel)}</button>
+      </div>
+    </section>
+  `;
+  elements.modeSecondary.innerHTML = `
+    <section class="card section-card">
+      <div class="${kind}-list">
+        ${entries.length ? entries.map((item) => renderPlainModeCard(kind, item)).join('') : `<div class="empty-card"><h3>还没有 ${escapeHtml(config.title)}</h3><p class="hint">上面保存后会出现在这里。</p></div>`}
+      </div>
+      ${renderPagination(currentPage, totalPages, 'plain-page')}
+    </section>
+  `;
+  elements.modeSecondary.querySelectorAll('[data-action="plain-page"]').forEach((button) => {
+    button.dataset.kind = kind;
+  });
+  elements.modeSide.innerHTML = renderTagSidebar({
+    selectedTags,
+    tagCounts: getModeTagCounts(kind),
+    filterAction: 'plain-filter-tag',
+    clearAction: 'plain-clear-tags',
+    searchInputId: `${kind}SearchInput`,
+    searchPlaceholder: config.searchPlaceholder,
+    searchValue: state.ui[kind].search
+  });
+  elements.modeSide.querySelectorAll('[data-action="plain-filter-tag"], [data-action="plain-clear-tags"]').forEach((item) => {
+    item.dataset.kind = kind;
+  });
+  requestAnimationFrame(() => {
+    document.querySelectorAll('[data-plain-editor-kind] textarea').forEach((textarea) => autoResizeTextarea(textarea, 88));
+  });
+}
+
 function renderWorkspace() {
   hideSuggestion();
   if (state.mode === 'capsule') {
     renderCapsuleWorkspace();
-  } else {
+  } else if (state.mode === 'issue') {
     renderIssueWorkspace();
+  } else {
+    renderPlainModeWorkspace(state.mode);
   }
+}
+
+function getPlainModeItems(kind) {
+  if (kind === 'canvas') {
+    return buildCanvasItems();
+  }
+  return buildPlainModeItems(kind);
+}
+
+function getPlainItemByKey(kind, key) {
+  return getPlainModeItems(kind).find((item) => item.key === key);
+}
+
+function getPlainEditorElement(kind, key = 'composer') {
+  return [...document.querySelectorAll(`[data-plain-editor-kind="${kind}"]`)]
+    .find((item) => item.dataset.key === key);
+}
+
+function readPlainEditorValues(kind, key = 'composer') {
+  const editor = getPlainEditorElement(kind, key);
+  if (!editor) {
+    return null;
+  }
+  const valueOf = (field) => editor.querySelector(`[data-field="${field}"]`)?.value || '';
+  return {
+    title: valueOf('title').trim(),
+    body: valueOf('body').trim(),
+    summary: valueOf('summary').trim(),
+    columnId: valueOf('columnId').trim(),
+    entry: valueOf('entry').trim(),
+    aspectRatio: valueOf('aspectRatio').trim() || '16 / 9',
+    tags: parseTagList(valueOf('tags'))
+  };
+}
+
+function createPlainExtraFrontmatter(kind, values) {
+  if (kind === 'article') {
+    return {
+      summary: values.summary || undefined,
+      columnId: values.columnId || undefined
+    };
+  }
+  if (kind === 'canvas') {
+    return {
+      summary: values.body || undefined,
+      entry: values.entry || undefined,
+      aspectRatio: values.aspectRatio || '16 / 9',
+      allowFullscreen: 'true'
+    };
+  }
+  return {};
+}
+
+async function savePlainFromComposer(kind) {
+  const config = getPlainModeConfig(kind);
+  const values = readPlainEditorValues(kind);
+  if (!values || !values.title) {
+    showToast(`先填写 ${config.title} 标题。`, 'error');
+    return;
+  }
+  if (kind === 'canvas' && !values.entry) {
+    showToast('Canvas 需要填写入口 HTML。', 'error');
+    return;
+  }
+  if (kind !== 'canvas' && !values.body) {
+    showToast('先写一点正文。', 'error');
+    return;
+  }
+  await saveTask({
+    kind,
+    action: 'create',
+    target: 'auto',
+    title: values.title,
+    body: values.body,
+    tags: values.tags,
+    extraFrontmatter: createPlainExtraFrontmatter(kind, values)
+  });
+  renderWorkspace();
+  showToast(`已加入待发布 ${config.title}`);
+}
+
+async function savePlainCard(kind, key) {
+  const config = getPlainModeConfig(kind);
+  const item = getPlainItemByKey(kind, key);
+  const values = readPlainEditorValues(kind, key);
+  if (!item || !values || !values.title) {
+    showToast('内容不完整，无法保存。', 'error');
+    return;
+  }
+  if (kind === 'canvas' && !values.entry) {
+    showToast('Canvas 需要填写入口 HTML。', 'error');
+    return;
+  }
+  await saveTask({
+    kind,
+    action: item.status === 'pendingPublish' ? 'create' : 'update',
+    target: item.status === 'pendingPublish' ? 'auto' : item.id,
+    title: values.title,
+    body: values.body,
+    fileName: item.fileName || `update-${item.id}.md`,
+    tags: values.tags,
+    createdAt: item.createdAt,
+    extraFrontmatter: createPlainExtraFrontmatter(kind, values)
+  });
+  delete state.ui[kind].editing[key];
+  renderWorkspace();
+  showToast(`已保存 ${config.title}`);
+}
+
+async function deletePlainItem(kind, key) {
+  const config = getPlainModeConfig(kind);
+  const item = getPlainItemByKey(kind, key);
+  if (!item) {
+    return;
+  }
+  if (item.status === 'pendingPublish' && item.fileName) {
+    await deleteDraft(item.fileName);
+    delete state.ui[kind].editing[key];
+    renderWorkspace();
+    showToast(`已删除待发布 ${config.title}`);
+    return;
+  }
+  if (item.status === 'pendingDelete' && item.fileName) {
+    await deleteDraft(item.fileName);
+    delete state.ui[kind].editing[key];
+    renderWorkspace();
+    showToast('已取消删除任务');
+    return;
+  }
+  await saveTask({
+    kind,
+    action: 'delete',
+    target: item.id,
+    title: item.title,
+    body: `删除 ${config.title}：${item.id}`,
+    fileName: item.fileName || `delete-${item.id}.md`,
+    createdAt: item.createdAt
+  });
+  delete state.ui[kind].editing[key];
+  renderWorkspace();
+  showToast(`已标记为待删除 ${config.title}`);
 }
 
 async function publishCapsuleFromComposer() {
@@ -2722,7 +3468,7 @@ function setMode(mode) {
 function renderAfterSearchInput() {
   renderWorkspace();
   requestAnimationFrame(() => {
-    const searchInput = document.getElementById(state.mode === 'capsule' ? 'capsuleSearchInput' : 'issueSearchInput');
+    const searchInput = document.getElementById(`${state.mode}SearchInput`);
     if (searchInput) {
       searchInput.focus();
       searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
@@ -2763,13 +3509,9 @@ function handleClick(event) {
     return;
   }
 
-  if (event.target.closest('#tabCapsule')) {
-    setMode('capsule');
-    return;
-  }
-
-  if (event.target.closest('#tabIssue')) {
-    setMode('issue');
+  const modeTab = event.target.closest('[data-mode-tab]');
+  if (modeTab) {
+    setMode(modeTab.dataset.modeTab || 'issue');
     return;
   }
 
@@ -2791,6 +3533,7 @@ function handleClick(event) {
     return;
   }
   const key = actionTarget.dataset.key;
+  const kind = actionTarget.dataset.kind || state.mode;
   const page = Number(actionTarget.dataset.page || '1');
 
   switch (action) {
@@ -2819,6 +3562,11 @@ function handleClick(event) {
     case 'command-dialog-confirm':
       confirmCommandDialog();
       break;
+    case 'canvas-picker-select': {
+      const selected = getCanvasCandidates(state.commandDialog.query || '').find((item) => item.sourceId === actionTarget.dataset.value);
+      closeCommandDialog(selected || null);
+      break;
+    }
     case 'capsule-publish':
       publishCapsuleFromComposer().catch((error) => showToast(error.message, 'error'));
       break;
@@ -2939,6 +3687,52 @@ function handleClick(event) {
     case 'issue-remove-capsule':
       removeIssueBlock(actionTarget.dataset.owner || 'composer', actionTarget.dataset.blockId);
       break;
+    case 'plain-save':
+      savePlainFromComposer(kind).catch((error) => showToast(error.message, 'error'));
+      break;
+    case 'plain-edit':
+      if (getPlainModeConfig(kind)) {
+        state.ui[kind].editing[key] = !state.ui[kind].editing[key];
+        renderPlainModeWorkspace(kind);
+      }
+      break;
+    case 'plain-save-edit':
+      savePlainCard(kind, key).catch((error) => showToast(error.message, 'error'));
+      break;
+    case 'plain-cancel-edit':
+      if (getPlainModeConfig(kind)) {
+        delete state.ui[kind].editing[key];
+        renderPlainModeWorkspace(kind);
+      }
+      break;
+    case 'plain-delete':
+      deletePlainItem(kind, key).catch((error) => showToast(error.message, 'error'));
+      break;
+    case 'plain-page':
+      if (getPlainModeConfig(kind)) {
+        state.ui[kind].page = page;
+        renderPlainModeWorkspace(kind);
+      }
+      break;
+    case 'plain-filter-tag': {
+      if (!getPlainModeConfig(kind)) {
+        break;
+      }
+      const tag = actionTarget.dataset.tag || '';
+      const exists = state.ui[kind].activeTags.some((item) => item.toLowerCase() === tag.toLowerCase());
+      state.ui[kind].activeTags = exists
+        ? state.ui[kind].activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())
+        : [tag, ...state.ui[kind].activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())];
+      state.ui[kind].page = 1;
+      renderPlainModeWorkspace(kind);
+      break;
+    }
+    case 'plain-clear-tags':
+      if (getPlainModeConfig(kind)) {
+        state.ui[kind].activeTags = [];
+        renderPlainModeWorkspace(kind);
+      }
+      break;
     case 'suggest-tag':
       applyTagSuggestion(actionTarget.dataset.value || '');
       break;
@@ -2977,6 +3771,13 @@ function handleInput(event) {
     return;
   }
 
+  if (target.matches('[data-canvas-picker-query]')) {
+    state.commandDialog.query = target.value;
+    state.commandDialog.selectedCanvasId = '';
+    renderCommandDialog();
+    return;
+  }
+
   if (target.matches('[data-capsule-text-target]')) {
     const { owner, blockId } = parseEditorTarget(target.dataset.capsuleTextTarget);
     syncCapsuleTextBlock(owner, blockId, target.value);
@@ -3003,6 +3804,14 @@ function handleInput(event) {
     return;
   }
 
+  const plainSearchKind = ['flow', 'article', 'canvas'].find((kind) => target.id === `${kind}SearchInput`);
+  if (plainSearchKind) {
+    state.ui[plainSearchKind].search = target.value;
+    state.ui[plainSearchKind].page = 1;
+    renderAfterSearchInput();
+    return;
+  }
+
   if (target.matches('[data-issue-text-target]')) {
     const { owner, blockId } = parseEditorTarget(target.dataset.issueTextTarget);
     syncIssueBlock(owner, blockId, target.value);
@@ -3022,6 +3831,11 @@ function handleInput(event) {
 
   if (target.matches('[data-issue-title-target]')) {
     setIssueEditorTitle(target.dataset.issueTitleTarget || 'composer', target.value);
+    return;
+  }
+
+  if (target.matches('[data-plain-editor-kind] textarea')) {
+    autoResizeTextarea(target, 88);
   }
 }
 

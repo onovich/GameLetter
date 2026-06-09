@@ -38,7 +38,7 @@ function normalizeEntry(entry, kind) {
 }
 
 export function useNewsletterData() {
-  const [data, setData] = useState({ site: null, features: {}, capsules: [], issues: [], flows: [], articles: [], columns: [] });
+  const [data, setData] = useState({ site: null, features: {}, capsules: [], issues: [], flows: [], articles: [], columns: [], canvases: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -61,7 +61,8 @@ export function useNewsletterData() {
             issues: (payload.issues || []).map((entry) => normalizeEntry(entry, 'issue')),
             flows: (payload.flows || []).map((entry) => normalizeEntry(entry, 'flow')),
             articles: (payload.articles || []).map((entry) => normalizeEntry(entry, 'article')),
-            columns: payload.columns || []
+            columns: payload.columns || [],
+            canvases: (payload.canvases || []).map((entry) => normalizeEntry(entry, 'canvas'))
           });
           setError('');
         }

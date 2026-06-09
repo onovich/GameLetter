@@ -8,6 +8,14 @@ const dataPath = path.join(publicDir, 'data.json');
 
 const errors = [];
 const warnings = [];
+const singularKindByCollection = {
+  capsules: 'capsule',
+  issues: 'issue',
+  flows: 'flow',
+  articles: 'article',
+  columns: 'column',
+  canvases: 'canvas'
+};
 
 function addError(message) {
   errors.push(message);
@@ -74,6 +82,7 @@ function validateVisibility(entry, label) {
 function validateEntryIdentity(entries, kind) {
   const ids = new Map();
   const slugs = new Map();
+  const expectedKind = singularKindByCollection[kind] || kind.replace(/s$/, '');
 
   entries.forEach((entry, index) => {
     const label = `${kind}[${index}]`;
@@ -83,8 +92,8 @@ function validateEntryIdentity(entries, kind) {
     validateTags(entry, label);
     validateVisibility(entry, label);
 
-    if (entry.kind && entry.kind !== kind.slice(0, -1)) {
-      addWarning(`${label} has kind "${entry.kind}", expected "${kind.slice(0, -1)}".`);
+    if (entry.kind && entry.kind !== expectedKind) {
+      addWarning(`${label} has kind "${entry.kind}", expected "${expectedKind}".`);
     }
     if (id) {
       if (ids.has(id)) {
@@ -229,12 +238,14 @@ function validateData() {
   const flows = requireArray(data, 'flows');
   const articles = requireArray(data, 'articles');
   const columns = requireArray(data, 'columns');
+  const canvases = Array.isArray(data.canvases) ? data.canvases : [];
 
   validateEntryIdentity(capsules, 'capsules');
   validateEntryIdentity(issues, 'issues');
   validateEntryIdentity(flows, 'flows');
   validateEntryIdentity(articles, 'articles');
   validateEntryIdentity(columns, 'columns');
+  validateEntryIdentity(canvases, 'canvases');
 
   const capsuleIds = new Set(capsules.map((capsule) => capsule.id).filter(Boolean));
   const columnIds = new Set(columns.map((column) => column.id).filter(Boolean));
@@ -243,6 +254,15 @@ function validateData() {
     const label = `capsules[${index}]`;
     validateCapsulePayload(capsule, label);
     validateBlocks(capsule, label, capsuleIds);
+  });
+  canvases.forEach((canvas, index) => {
+    const label = `canvases[${index}]`;
+    const entry = String(canvas.entry || canvas.src || canvas.url || '').trim();
+    if (!entry) {
+      addError(`${label} needs entry, src, or url.`);
+    } else {
+      validatePublicFile(entry, `${label} entry`);
+    }
   });
   issues.forEach((issue, index) => validateBlocks(issue, `issues[${index}]`, capsuleIds));
   validateArticles(articles, columnIds, capsuleIds);

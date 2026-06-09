@@ -138,6 +138,15 @@ function inferKind(text, frontmatter) {
   if (/(issue|newsletter|简报|文章)/i.test(value)) {
     return 'issue';
   }
+  if (/(flow|碎碎念|想法)/i.test(value)) {
+    return 'flow';
+  }
+  if (/(article|专栏|长文)/i.test(value)) {
+    return 'article';
+  }
+  if (/(canvas|可交互|小游戏|visualization|prototype)/i.test(value)) {
+    return 'canvas';
+  }
   return 'auto';
 }
 
@@ -146,7 +155,7 @@ function inferTarget(text, frontmatter) {
     return frontmatter.target;
   }
 
-  const match = text.match(/(issue-[\w-]+|capsule-[\w-]+)/i);
+  const match = text.match(/(issue-[\w-]+|capsule-[\w-]+|flow-[\w-]+|article-[\w-]+|canvas-[\w-]+)/i);
   return match ? match[1] : 'auto';
 }
 
@@ -401,7 +410,10 @@ async function validateOperation(fileName) {
 async function serveStatic(request, response, url) {
   const isBrowseIndex = url.pathname === '/browse' || url.pathname === '/browse/';
   const isBrowseAsset = url.pathname.startsWith('/browse/');
-  const isDistAsset = url.pathname.startsWith('/assets/') || url.pathname === '/data.json' || url.pathname === '/rss.xml';
+  const isDistAsset = url.pathname.startsWith('/assets/')
+    || url.pathname.startsWith('/canvases/')
+    || url.pathname === '/data.json'
+    || url.pathname === '/rss.xml';
   const baseDir = (isBrowseIndex || isBrowseAsset || isDistAsset) ? distDir : studioDir;
   const requestedPath = isBrowseIndex
     ? '/index.html'

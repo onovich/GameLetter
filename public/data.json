@@ -11,8 +11,29 @@
     "homepageShowsIssuesOnly": false,
     "rssSources": ["issues", "articles"],
     "homepageShows": ["issues", "articles"],
-    "searchScopes": ["all", "issues", "capsules", "flows", "articles"]
+    "searchScopes": ["all", "issues", "capsules", "flows", "articles", "canvases"]
   },
+  "canvases": [
+    {
+      "id": "canvas-orbit-field",
+      "slug": "orbit-field",
+      "kind": "canvas",
+      "title": "Orbit Canvas Prototype",
+      "summary": "内置可交互 HTML，可作为可视化演示或小游戏原型被 Capsule 引用。",
+      "tags": ["Canvas", "Prototype", "Interactive"],
+      "publishedAt": "2026-06-09T20:20:00+08:00",
+      "entry": "/canvases/orbit-field/index.html",
+      "aspectRatio": "16 / 9",
+      "allowFullscreen": true,
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": false,
+        "feed": false,
+        "rss": false
+      }
+    }
+  ],
   "capsules": [
     {
       "id": "capsule-20260422-01",
@@ -118,6 +139,7 @@
       },
       "payload": {
         "type": "canvas",
+        "canvasId": "canvas-orbit-field",
         "entry": "/canvases/orbit-field/index.html",
         "aspectRatio": "16 / 9",
         "allowFullscreen": true,
