@@ -23,7 +23,8 @@
   --issue-tab-color: #86cbbf;
   --flow-tab-color: #f59e0b;
   --article-tab-color: #8b5cf6;
-  --canvas-tab-color: #14b8a6;
+  --toy-tab-color: #14b8a6;
+  --toy-tab-color: var(--toy-tab-color);
   --accent-soft: rgba(116, 167, 247, 0.12);
   --danger: #dc2626;
   --warning: #d97706;
@@ -171,6 +172,9 @@ textarea:focus, input:focus, select:focus {
   grid-template-columns: 1fr;
   gap: 8px;
   padding: 6px;
+  --mode-tab-height: 52px;
+  --active-offset: 0px;
+  --active-color: var(--issue-tab-color);
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.68);
   border: 1px solid var(--border);
@@ -184,50 +188,40 @@ textarea:focus, input:focus, select:focus {
   top: 6px;
   left: 6px;
   width: calc(100% - 12px);
-  height: calc((100% - 12px - 32px) / 5);
+  height: var(--mode-tab-height);
   border-radius: 16px;
-  background-color: var(--issue-tab-color);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--issue-tab-color) 28%, transparent);
-  transform: translate3d(0, 0, 0);
+  background-color: var(--active-color);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--active-color) 28%, transparent);
+  transform: translate3d(0, var(--active-offset), 0);
   will-change: transform, background-color, box-shadow;
   transition: transform var(--theme-transition-duration) ease, background-color var(--theme-transition-duration) ease, box-shadow var(--theme-transition-duration) ease;
 }
 
-.mode-tabs.capsule-active .mode-tab-indicator {
-  background-color: var(--capsule-tab-color);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--capsule-tab-color) 28%, transparent);
-  transform: translate3d(0, calc((100% + 8px) * 1), 0);
+.mode-tabs.capsule-active {
+  --active-color: var(--capsule-tab-color);
 }
 
-.mode-tabs.flow-active .mode-tab-indicator {
-  background-color: var(--flow-tab-color);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--flow-tab-color) 28%, transparent);
-  transform: translate3d(0, calc((100% + 8px) * 2), 0);
+.mode-tabs.flow-active {
+  --active-color: var(--flow-tab-color);
 }
 
-.mode-tabs.article-active .mode-tab-indicator {
-  background-color: var(--article-tab-color);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--article-tab-color) 28%, transparent);
-  transform: translate3d(0, calc((100% + 8px) * 3), 0);
+.mode-tabs.article-active {
+  --active-color: var(--article-tab-color);
 }
 
-.mode-tabs.canvas-active .mode-tab-indicator {
-  background-color: var(--canvas-tab-color);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--canvas-tab-color) 28%, transparent);
-  transform: translate3d(0, calc((100% + 8px) * 4), 0);
+.mode-tabs.toy-active {
+  --active-color: var(--toy-tab-color);
 }
 
-.mode-tabs.issue-active .mode-tab-indicator {
-  background-color: var(--issue-tab-color);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--issue-tab-color) 28%, transparent);
-  transform: translate3d(0, 0, 0);
+.mode-tabs.issue-active {
+  --active-color: var(--issue-tab-color);
 }
 
 .mode-tab {
   position: relative;
   z-index: 1;
   width: 100%;
-  min-height: 52px;
+  min-height: var(--mode-tab-height);
   padding: 0 22px;
   border-radius: 14px;
   background: transparent;
@@ -606,6 +600,7 @@ button.tag-chip {
 .issue-list,
 .flow-list,
 .article-list,
+.toy-list,
 .tag-sidebar-list {
   display: grid;
   gap: 14px;
@@ -615,6 +610,7 @@ button.tag-chip {
 .issue-list-item,
 .flow-card,
 .article-card,
+.toy-card,
 .issue-editor-card,
 .side-card,
 .empty-card {
@@ -816,11 +812,11 @@ button.tag-chip {
   max-width: min(100%, var(--thumbnail-width));
 }
 
-.canvas-block-preview {
+.toy-block-preview {
   width: min(100%, 760px);
 }
 
-.canvas-frame-wrap {
+.toy-frame-wrap {
   position: relative;
   width: 100%;
   min-height: 260px;
@@ -830,7 +826,7 @@ button.tag-chip {
   background: #0f172a;
 }
 
-.canvas-fullscreen-link {
+.toy-fullscreen-link {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -855,20 +851,20 @@ button.tag-chip {
   backdrop-filter: blur(8px);
 }
 
-.canvas-frame-wrap:hover .canvas-fullscreen-link,
-.canvas-frame-wrap:focus-within .canvas-fullscreen-link {
+.toy-frame-wrap:hover .toy-fullscreen-link,
+.toy-frame-wrap:focus-within .toy-fullscreen-link {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
 }
 
-.canvas-fullscreen-link:hover,
-.canvas-fullscreen-link:focus-visible {
+.toy-fullscreen-link:hover,
+.toy-fullscreen-link:focus-visible {
   background: white;
   outline: none;
 }
 
-.canvas-frame {
+.toy-frame {
   display: block;
   width: 100%;
   height: 100%;
@@ -879,7 +875,7 @@ button.tag-chip {
 .issue-list-item,
 .flow-card,
 .article-card,
-.canvas-card,
+.toy-card,
 .side-card,
 .empty-card {
   position: relative;
@@ -1156,14 +1152,14 @@ button.tag-chip {
   padding: 0 14px;
 }
 
-.canvas-picker-list {
+.toy-picker-list {
   display: grid;
   gap: 8px;
   max-height: min(42vh, 360px);
   overflow: auto;
 }
 
-.canvas-picker-item {
+.toy-picker-item {
   display: grid;
   justify-items: start;
   gap: 4px;
@@ -1178,15 +1174,15 @@ button.tag-chip {
   box-shadow: none;
 }
 
-.canvas-picker-item small {
+.toy-picker-item small {
   max-width: 100%;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
 }
 
-.canvas-picker-item:hover,
-.canvas-picker-item.active {
+.toy-picker-item:hover,
+.toy-picker-item.active {
   border-color: var(--border-strong);
   background: #ffffff;
 }
@@ -1508,7 +1504,7 @@ button.tag-chip {
   .issue-list-item,
   .flow-card,
   .article-card,
-  .canvas-card,
+  .toy-card,
   .side-card,
   .empty-card {
     padding: 16px;

@@ -38,7 +38,7 @@ function normalizeEntry(entry, kind) {
 }
 
 export function useNewsletterData() {
-  const [data, setData] = useState({ site: null, features: {}, capsules: [], issues: [], flows: [], articles: [], columns: [], canvases: [] });
+  const [data, setData] = useState({ site: null, features: {}, capsules: [], issues: [], flows: [], articles: [], columns: [], toys: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -53,6 +53,7 @@ export function useNewsletterData() {
           throw new Error(`Failed to load data: ${response.status}`);
         }
         const payload = await response.json();
+        const toys = payload.toys || [];
         if (!cancelled) {
           setData({
             site: payload.site,
@@ -62,7 +63,7 @@ export function useNewsletterData() {
             flows: (payload.flows || []).map((entry) => normalizeEntry(entry, 'flow')),
             articles: (payload.articles || []).map((entry) => normalizeEntry(entry, 'article')),
             columns: payload.columns || [],
-            canvases: (payload.canvases || []).map((entry) => normalizeEntry(entry, 'canvas'))
+            toys: toys.map((entry) => normalizeEntry(entry, 'toy'))
           });
           setError('');
         }

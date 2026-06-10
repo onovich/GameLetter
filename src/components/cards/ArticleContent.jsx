@@ -3,8 +3,8 @@ import { renderInlineMarkdown } from '../../content/markdown';
 import { BrowseBlock } from '../blocks/BrowseBlock';
 import { EmbeddedCapsuleCard } from './EmbeddedCapsuleCard';
 
-export function ArticleContent({ article, capsulesById, onOpenCapsule, onImageClick, canvasesById }) {
-  const articleBlocks = getArticleBlocks(article, { canvasesById });
+export function ArticleContent({ article, capsulesById, toysById = new Map(), onOpenCapsule, onImageClick }) {
+  const articleBlocks = getArticleBlocks(article, { toysById });
 
   return (
     <div className="article-body">
@@ -40,12 +40,20 @@ export function ArticleContent({ article, capsulesById, onOpenCapsule, onImageCl
           );
         }
 
-        if (block.type === 'capsule-ref' || block.type === 'canvas-ref') {
+        if (block.type === 'capsule-ref') {
           const capsule = capsulesById.get(block.capsuleId);
           if (!capsule) {
             return null;
           }
-          return <EmbeddedCapsuleCard key={`${article.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} canvasesById={canvasesById} />;
+          return <EmbeddedCapsuleCard key={`${article.id}-capsule-${index}`} capsule={capsule} onOpenCapsule={onOpenCapsule} />;
+        }
+
+        if (block.type === 'toy-ref') {
+          const toy = toysById.get(block.toyId);
+          if (!toy) {
+            return null;
+          }
+          return <BrowseBlock key={`${article.id}-toy-${index}`} block={{ ...toy, type: 'toy', toyId: toy.id }} onImageClick={onImageClick} />;
         }
 
         if (block.type === 'note') {
@@ -57,7 +65,7 @@ export function ArticleContent({ article, capsulesById, onOpenCapsule, onImageCl
           );
         }
 
-        if (block.type === 'link' || block.type === 'image' || block.type === 'canvas') {
+        if (block.type === 'link' || block.type === 'image' || block.type === 'toy') {
           return <BrowseBlock key={`${article.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />;
         }
 

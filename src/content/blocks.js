@@ -1,10 +1,10 @@
 export {
   capsuleNeedsCollapse,
   capsulePreviewBlocks,
-  createCanvasContentBlock,
   createImageContentBlock,
   createLinkContentBlock,
   createTextContentBlock,
+  createToyContentBlock,
   getArticleBlocks,
   getCapsuleBlocks,
   getCapsuleEmbedPreview,

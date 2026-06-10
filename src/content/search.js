@@ -12,8 +12,8 @@ export function getBlockSearchText(block) {
     .join(' ');
 }
 
-export function getIssueSearchText(issue, capsulesById, canvasesById) {
-  const issueBlocks = getIssueBlocks(issue, { canvasesById });
+export function getIssueSearchText(issue, capsulesById) {
+  const issueBlocks = getIssueBlocks(issue);
   return [
     issue.title,
     issue.summary,
@@ -24,15 +24,15 @@ export function getIssueSearchText(issue, capsulesById, canvasesById) {
       }
       if (block.type === 'capsule-ref') {
         const capsule = capsulesById.get(block.capsuleId);
-        return capsule ? getCapsuleSearchText(capsule, canvasesById) : '';
+        return capsule ? getCapsuleSearchText(capsule) : '';
       }
       return getBlockSearchText(block);
     })
   ].join(' ').toLowerCase();
 }
 
-export function getCapsuleSearchText(capsule, canvasesById) {
-  const blockText = getCapsuleBlocks(capsule, { canvasesById })
+export function getCapsuleSearchText(capsule) {
+  const blockText = getCapsuleBlocks(capsule)
     .map((block) => getBlockSearchText(block))
     .join(' ');
 
@@ -43,11 +43,19 @@ export function getPlainEntrySearchText(entry) {
   return [entry.title, entry.summary, entry.body, entry.content, ...(entry.tags || [])].join(' ').toLowerCase();
 }
 
-export function getArticleSearchText(article, capsulesById, columnsById, canvasesById) {
-  const blockText = getArticleBlocks(article, { canvasesById }).map((block) => {
-    if (block.type === 'capsule-ref' || block.type === 'canvas-ref') {
+export function getToySearchText(toy) {
+  return [toy.title, toy.summary, toy.entry, ...(toy.tags || [])].join(' ').toLowerCase();
+}
+
+export function getArticleSearchText(article, capsulesById, columnsById, toysById) {
+  const blockText = getArticleBlocks(article, { toysById }).map((block) => {
+    if (block.type === 'capsule-ref') {
       const capsule = capsulesById.get(block.capsuleId);
-      return capsule ? getCapsuleSearchText(capsule, canvasesById) : '';
+      return capsule ? getCapsuleSearchText(capsule) : '';
+    }
+    if (block.type === 'toy-ref') {
+      const toy = toysById.get(block.toyId);
+      return toy ? getToySearchText(toy) : '';
     }
     return getBlockSearchText(block);
   }).join(' ');

@@ -15,10 +15,10 @@ const singularKindByCollection = {
   flows: 'flow',
   articles: 'article',
   columns: 'column',
-  canvases: 'canvas'
+  toys: 'toy'
 };
 const knownVisibilityKeys = new Set(['direct', 'search', 'homepage', 'feed', 'rss']);
-const knownCollectionKeys = new Set(['issues', 'articles', 'capsules', 'flows', 'canvases']);
+const knownCollectionKeys = new Set(['issues', 'articles', 'capsules', 'flows', 'toys']);
 
 function addError(message) {
   errors.push(message);
@@ -220,7 +220,7 @@ function validatePublicFile(entryPath, label) {
   }
 }
 
-function validateBlock(block, label, capsuleIds, canvasIds) {
+function validateBlock(block, label, capsuleIds, toyIds) {
   if (!isPlainObject(block)) {
     addError(`${label} must be an object.`);
     return;
@@ -240,18 +240,18 @@ function validateBlock(block, label, capsuleIds, canvasIds) {
     return;
   }
 
-  if (type === 'canvas-ref') {
-    const capsuleId = String(block.capsuleId || '').trim();
-    const canvasId = String(block.canvasId || '').trim();
-    if (!capsuleId && !canvasId) {
-      addError(`${label} needs capsuleId or canvasId.`);
+  if (type === 'toy-ref') {
+    const toyId = String(block.toyId || '').trim();
+    if (!label.startsWith('articles[')) {
+      addError(`${label} uses ${type}, but only Article can reference Toy.`);
       return;
     }
-    if (capsuleId && !capsuleIds.has(capsuleId)) {
-      addError(`${label} references missing capsule "${capsuleId}".`);
+    if (!toyId) {
+      addError(`${label} needs toyId.`);
+      return;
     }
-    if (canvasId && !canvasIds.has(canvasId)) {
-      addError(`${label} references missing canvas "${canvasId}".`);
+    if (!toyIds.has(toyId)) {
+      addError(`${label} references missing toy "${toyId}".`);
     }
     return;
   }
@@ -268,18 +268,22 @@ function validateBlock(block, label, capsuleIds, canvasIds) {
     return;
   }
 
-  if (type === 'canvas') {
-    const canvasId = String(block.canvasId || '').trim();
-    if (canvasId && !canvasIds.has(canvasId)) {
-      addError(`${label} references missing canvas "${canvasId}".`);
+  if (type === 'toy') {
+    const toyId = String(block.toyId || '').trim();
+    if (!label.startsWith('articles[')) {
+      addError(`${label} uses ${type}, but only Article can embed Toy.`);
+      return;
+    }
+    if (toyId && !toyIds.has(toyId)) {
+      addError(`${label} references missing toy "${toyId}".`);
     }
     const entry = String(block.entry || block.src || block.url || '').trim();
-    if (!entry && !canvasId) {
-      addError(`${label} canvas block needs entry, src, or url.`);
+    if (!entry && !toyId) {
+      addError(`${label} toy block needs entry, src, or url.`);
       return;
     }
     if (entry) {
-      validatePublicFile(entry, `${label} canvas entry`);
+      validatePublicFile(entry, `${label} toy entry`);
     }
     return;
   }
@@ -308,15 +312,15 @@ function validateBlock(block, label, capsuleIds, canvasIds) {
   addWarning(`${label} uses unknown block type "${type}".`);
 }
 
-function validateBlocks(entry, label, capsuleIds, canvasIds) {
+function validateBlocks(entry, label, capsuleIds, toyIds) {
   const blockSources = [
     ...(Array.isArray(entry.blocks) ? entry.blocks : []),
     ...(Array.isArray(entry.payload?.blocks) ? entry.payload.blocks : [])
   ];
-  blockSources.forEach((block, index) => validateBlock(block, `${label}.blocks[${index}]`, capsuleIds, canvasIds));
+  blockSources.forEach((block, index) => validateBlock(block, `${label}.blocks[${index}]`, capsuleIds, toyIds));
 }
 
-function validateCapsulePayload(capsule, label, canvasIds) {
+function validateCapsulePayload(capsule, label) {
   if (!capsule.payload) {
     return;
   }
@@ -335,31 +339,20 @@ function validateCapsulePayload(capsule, label, canvasIds) {
     requireString(capsule.payload, 'url', `${label}.payload`);
   } else if (type === 'image') {
     requireString(capsule.payload, 'url', `${label}.payload`);
-  } else if (type === 'canvas') {
-    const canvasId = String(capsule.payload.canvasId || '').trim();
-    if (canvasId && !canvasIds.has(canvasId)) {
-      addError(`${label}.payload references missing canvas "${canvasId}".`);
-    }
-    const entry = String(capsule.payload.entry || capsule.payload.src || capsule.payload.url || '').trim();
-    if (!entry && !canvasId) {
-      addError(`${label}.payload canvas needs entry, src, or url.`);
-    } else {
-      if (entry) {
-        validatePublicFile(entry, `${label}.payload canvas entry`);
-      }
-    }
+  } else if (type === 'toy') {
+    addError(`${label}.payload type "${type}" is no longer allowed; create a top-level Toy and reference it from Article.`);
   } else if (type !== 'thought') {
-    addWarning(`${label}.payload uses unknown type "${type}".`);
+    addError(`${label}.payload uses unsupported type "${type}".`);
   }
 }
 
-function validateArticles(articles, columnIds, capsuleIds, canvasIds) {
+function validateArticles(articles, columnIds, capsuleIds, toyIds) {
   articles.forEach((article, index) => {
     const label = `articles[${index}]`;
     if (article.columnId && !columnIds.has(article.columnId)) {
       addError(`${label} references missing column "${article.columnId}".`);
     }
-    validateBlocks(article, label, capsuleIds, canvasIds);
+    validateBlocks(article, label, capsuleIds, toyIds);
   });
 }
 
@@ -373,35 +366,35 @@ function validateData() {
   const flows = requireArray(data, 'flows');
   const articles = requireArray(data, 'articles');
   const columns = requireArray(data, 'columns');
-  const canvases = Array.isArray(data.canvases) ? data.canvases : [];
+  const toys = requireArray(data, 'toys');
 
   validateEntryIdentity(capsules, 'capsules');
   validateEntryIdentity(issues, 'issues');
   validateEntryIdentity(flows, 'flows');
   validateEntryIdentity(articles, 'articles');
   validateEntryIdentity(columns, 'columns');
-  validateEntryIdentity(canvases, 'canvases');
+  validateEntryIdentity(toys, 'toys');
 
   const capsuleIds = new Set(capsules.map((capsule) => capsule.id).filter(Boolean));
   const columnIds = new Set(columns.map((column) => column.id).filter(Boolean));
-  const canvasIds = new Set(canvases.map((canvas) => canvas.id).filter(Boolean));
+  const toyIds = new Set(toys.map((toy) => toy.id).filter(Boolean));
 
   capsules.forEach((capsule, index) => {
     const label = `capsules[${index}]`;
-    validateCapsulePayload(capsule, label, canvasIds);
-    validateBlocks(capsule, label, capsuleIds, canvasIds);
+    validateCapsulePayload(capsule, label);
+    validateBlocks(capsule, label, capsuleIds, toyIds);
   });
-  canvases.forEach((canvas, index) => {
-    const label = `canvases[${index}]`;
-    const entry = String(canvas.entry || canvas.src || canvas.url || '').trim();
+  toys.forEach((toy, index) => {
+    const label = `toys[${index}]`;
+    const entry = String(toy.entry || toy.src || toy.url || '').trim();
     if (!entry) {
       addError(`${label} needs entry, src, or url.`);
     } else {
       validatePublicFile(entry, `${label} entry`);
     }
   });
-  issues.forEach((issue, index) => validateBlocks(issue, `issues[${index}]`, capsuleIds, canvasIds));
-  validateArticles(articles, columnIds, capsuleIds, canvasIds);
+  issues.forEach((issue, index) => validateBlocks(issue, `issues[${index}]`, capsuleIds, toyIds));
+  validateArticles(articles, columnIds, capsuleIds, toyIds);
 
   if (errors.length) {
     console.error('Data validation failed:');

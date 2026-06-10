@@ -4,8 +4,8 @@ import { renderInlineMarkdown } from '../../content/markdown';
 import { renderText } from '../../content/text';
 import { cardMotion } from '../../view/animations';
 
-export function EmbeddedCapsuleCard({ capsule, onOpenCapsule, canvasesById }) {
-  const blocks = getCapsuleBlocks(capsule, { canvasesById });
+export function EmbeddedCapsuleCard({ capsule, onOpenCapsule }) {
+  const blocks = getCapsuleBlocks(capsule);
   const preview = getCapsuleEmbedPreview(capsule, blocks);
 
   return (

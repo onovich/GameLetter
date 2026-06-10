@@ -23,12 +23,12 @@ const collectionByKind = {
   issue: 'issues',
   flow: 'flows',
   article: 'articles',
-  canvas: 'canvases'
+  toy: 'toys'
 };
 
 const defaultVisibilityByKind = {
   capsule: { direct: true, search: true, homepage: false, feed: false, rss: false },
-  canvas: { direct: true, search: true, homepage: false, feed: false, rss: false },
+  toy: { direct: true, search: true, homepage: false, feed: false, rss: false },
   flow: { direct: true, search: true, homepage: false, feed: false, rss: false },
   issue: { direct: true, search: true, homepage: true, feed: true, rss: true },
   article: { direct: true, search: true, homepage: true, feed: true, rss: true }
@@ -165,8 +165,8 @@ function inferKind(text, frontmatter) {
   if (/(article|专栏|长文)/i.test(value)) {
     return 'article';
   }
-  if (/(canvas|可交互|小游戏|visualization|prototype)/i.test(value)) {
-    return 'canvas';
+  if (/(toy|可交互|小游戏|visualization|prototype)/i.test(value)) {
+    return 'toy';
   }
   return 'auto';
 }
@@ -176,7 +176,7 @@ function inferTarget(text, frontmatter) {
     return frontmatter.target;
   }
 
-  const match = text.match(/(issue-[\w-]+|capsule-[\w-]+|flow-[\w-]+|article-[\w-]+|canvas-[\w-]+)/i);
+  const match = text.match(/(issue-[\w-]+|capsule-[\w-]+|flow-[\w-]+|article-[\w-]+|toy-[\w-]+)/i);
   return match ? match[1] : 'auto';
 }
 
@@ -468,7 +468,7 @@ function capsulePayloadFromBody(body = '', operation = {}) {
   const first = structured[0];
   const textChunks = chunks.filter((chunk) => {
     const marker = parseStructuredChunk(chunk).marker;
-    return !['[Image]', '[图片]', '[Link]', '[链接]', '[Canvas]'].includes(marker);
+    return !['[Image]', '[图片]', '[Link]', '[链接]'].includes(marker);
   });
   const commentary = textChunks.join('\n\n').trim();
 
@@ -488,17 +488,6 @@ function capsulePayloadFromBody(body = '', operation = {}) {
       url: first.fields.url || '',
       image: first.fields.image || '',
       commentary
-    };
-  }
-
-  if (first?.marker === '[Canvas]') {
-    return {
-      type: 'canvas',
-      canvasId: first.fields.canvasId || first.fields.id || '',
-      entry: first.fields.entry || first.fields.src || first.fields.url || '',
-      aspectRatio: first.fields.aspectRatio || '16 / 9',
-      allowFullscreen: first.fields.allowFullscreen !== 'false',
-      caption: first.fields.caption || first.fields.summary || commentary
     };
   }
 
@@ -546,12 +535,9 @@ function blockFromChunk(chunk = '', target = 'issue') {
     return capsuleId ? { type: 'capsule-ref', capsuleId } : { type: target === 'article' ? 'paragraph' : 'note', content: raw };
   }
 
-  if (marker === '[引用 Canvas]' || marker === '[Canvas Ref]') {
-    const capsuleId = fields.capsuleId || fields.id || '';
-    const canvasId = fields.canvasId || '';
-    return capsuleId
-      ? { type: 'canvas-ref', capsuleId }
-      : { type: 'canvas-ref', canvasId };
+  if (target === 'article' && (marker === '[引用 Toy]' || marker === '[Toy]')) {
+    const toyId = fields.toyId || fields.id || '';
+    return toyId ? { type: 'toy-ref', toyId } : { type: 'paragraph', content: raw };
   }
 
   if (marker === '[Heading]' || marker === '[标题]') {
@@ -580,8 +566,8 @@ function blocksFromBody(body = '', target = 'issue') {
       if (block.type === 'capsule-ref') {
         return Boolean(block.capsuleId);
       }
-      if (block.type === 'canvas-ref') {
-        return Boolean(block.capsuleId || block.canvasId);
+      if (block.type === 'toy-ref') {
+        return Boolean(block.toyId);
       }
       if (block.type === 'list') {
         return Array.isArray(block.items) && block.items.some((item) => String(item || '').trim());
@@ -599,7 +585,7 @@ function summaryFromBlocks(blocks = []) {
       if (block.type === 'list') {
         return (block.items || []).join(' ');
       }
-      return block.content || block.text || block.capsuleId || block.canvasId || '';
+      return block.content || block.text || block.capsuleId || block.toyId || '';
     })
     .join(' ')
     .replace(/\s+/g, ' ')
@@ -667,9 +653,10 @@ function buildEntryFromOperation(operation, data, existingItem = null) {
     };
   }
 
-  if (kind === 'canvas') {
+  if (kind === 'toy') {
     return {
       ...base,
+      kind: 'toy',
       entry: frontmatter.entry || existingItem?.entry || '',
       aspectRatio: frontmatter.aspectRatio || existingItem?.aspectRatio || '16 / 9',
       allowFullscreen: frontmatter.allowFullscreen !== 'false'
@@ -870,13 +857,19 @@ function collectReferencedCapsuleIds(body) {
   return [...body.matchAll(/capsuleId:\s*([\w-]+)/gi)].map((match) => match[1]);
 }
 
+function collectReferencedToyIds(body) {
+  return [...body.matchAll(/toyId:\s*([\w-]+)/gi)].map((match) => match[1]);
+}
+
 async function validateOperation(fileName) {
   const operation = await getInboxFile(fileName);
   const data = await readDataSource();
   const issues = data.issues || [];
   const capsules = data.capsules || [];
+  const toys = data.toys || [];
   const issueIds = new Set(issues.map((item) => item.id));
   const capsuleIds = new Set(capsules.map((item) => item.id));
+  const toyIds = new Set(toys.map((item) => item.id));
   const errors = [];
   const warnings = [];
   const infos = [];
@@ -894,12 +887,15 @@ async function validateOperation(fileName) {
   }
 
   if (operation.target !== 'auto') {
-    const targetKind = operation.target.startsWith('issue-') ? 'issue' : operation.target.startsWith('capsule-') ? 'capsule' : operation.kind;
+    const targetKind = operation.target.startsWith('issue-') ? 'issue' : operation.target.startsWith('capsule-') ? 'capsule' : operation.target.startsWith('toy-') ? 'toy' : operation.kind;
     if (targetKind === 'issue' && !issueIds.has(operation.target)) {
       errors.push(`目标 Issue 不存在：${operation.target}`);
     }
     if (targetKind === 'capsule' && !capsuleIds.has(operation.target)) {
       errors.push(`目标 Capsule 不存在：${operation.target}`);
+    }
+    if (targetKind === 'toy' && !toyIds.has(operation.target)) {
+      errors.push(`目标 Toy 不存在：${operation.target}`);
     }
   }
 
@@ -913,6 +909,19 @@ async function validateOperation(fileName) {
 
     if (referencedIds.length > 0) {
       infos.push(`检测到 ${referencedIds.length} 个 Capsule 引用。`);
+    }
+  }
+
+  if (operation.kind === 'article' || /toyId:/i.test(operation.body)) {
+    const referencedToyIds = collectReferencedToyIds(operation.body);
+    referencedToyIds.forEach((toyId) => {
+      if (!toyIds.has(toyId)) {
+        errors.push(`Article 引用了不存在的 Toy：${toyId}`);
+      }
+    });
+
+    if (referencedToyIds.length > 0) {
+      infos.push(`检测到 ${referencedToyIds.length} 个 Toy 引用。`);
     }
   }
 
@@ -950,7 +959,7 @@ async function serveStatic(request, response, url) {
   const isBrowseAsset = url.pathname.startsWith('/browse/');
   const isSharedModule = url.pathname.startsWith('/shared/');
   const isDistAsset = url.pathname.startsWith('/assets/')
-    || url.pathname.startsWith('/canvases/')
+    || url.pathname.startsWith('/toys/')
     || url.pathname === '/data.json'
     || url.pathname === '/rss.xml';
   const baseDir = isSharedModule

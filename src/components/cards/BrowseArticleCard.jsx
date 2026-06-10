@@ -14,7 +14,7 @@ function getArticleReadingMinutes(article) {
   return Math.max(1, Math.ceil(compact.length / 500));
 }
 
-export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById, canvasesById }) {
+export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle, onOpenCapsule, onImageClick, onToggleTag, activeTags, capsulesById, toysById }) {
   const readingMinutes = getArticleReadingMinutes(article);
 
   return (
@@ -47,7 +47,7 @@ export function BrowseArticleCard({ article, active, columnTitle, onOpenArticle,
             transition={{ duration: 0.26, ease: 'easeInOut' }}
           >
             <div className="issue-card-expand-inner">
-              <ArticleContent article={article} capsulesById={capsulesById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} canvasesById={canvasesById} />
+              <ArticleContent article={article} capsulesById={capsulesById} toysById={toysById} onOpenCapsule={onOpenCapsule} onImageClick={onImageClick} />
             </div>
           </motion.div>
         ) : null}

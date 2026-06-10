@@ -63,8 +63,8 @@ GameLetter/
         "rss": false
       },
       "payload": {
-        "type": "canvas",
-        "entry": "/canvases/demo/index.html",
+        "type": "toy",
+        "entry": "/toys/demo/index.html",
         "aspectRatio": "16 / 9",
         "allowFullscreen": true
       }
@@ -123,7 +123,7 @@ GameLetter/
           "content": "长文段落"
         },
         {
-          "type": "canvas-ref",
+          "type": "toy-ref",
           "capsuleId": "capsule-20260422-01"
         }
       ]
@@ -172,16 +172,16 @@ GameLetter/
 - `text`
 - `image`
 - `link`
-- `canvas`
+- `toy`
 - `note`
 - `capsule-ref`
-- `canvas-ref`
+- `toy-ref`
 
 其中：
 
-- `Capsule` 侧主要消费 `text / image / link / canvas`
+- `Capsule` 侧主要消费 `text / image / link`
 - `Issue` 侧主要消费 `note / capsule-ref / link / image`
-- `Article` 侧主要消费 `paragraph / heading / quote / capsule-ref / canvas-ref`
+- `Article` 侧主要消费 `paragraph / heading / quote / capsule-ref / toy-ref`
 - `Flow` 侧保持纯文本，不进入 block 编排
 
 ## 运行时安全约束

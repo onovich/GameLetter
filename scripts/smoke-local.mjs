@@ -90,38 +90,36 @@ async function stopServer(child) {
 }
 
 function runContentModelSmoke() {
-  const canvas = {
-    id: 'canvas-smoke',
-    title: 'Smoke Canvas',
-    summary: 'Interactive smoke canvas',
-    entry: '/canvases/smoke/index.html',
-    tags: ['Canvas']
+  const toy = {
+    id: 'toy-smoke',
+    title: 'Smoke Toy',
+    summary: 'Interactive smoke toy',
+    entry: '/toys/smoke/index.html',
+    tags: ['Toy']
   };
-  const canvasesById = new Map([[canvas.id, canvas]]);
+  const toysById = new Map([[toy.id, toy]]);
   const capsule = {
     id: 'capsule-smoke',
     title: 'Smoke Capsule',
     summary: 'Fallback summary',
     blocks: [
-      { type: 'canvas', canvasId: canvas.id },
-      { type: 'text', text: 'Canvas can be resolved from registry.' }
+      { type: 'link', text: 'Readable link', url: 'https://example.com' },
+      { type: 'text', text: 'Capsule remains link, image, or thought.' }
     ]
   };
 
-  const blocks = getCapsuleBlocks(capsule, { canvasesById });
-  assert.equal(blocks[0].entry, canvas.entry);
-  assert.equal(blocks[0].title, canvas.title);
-  assert.equal(getCapsuleEmbedPreview(capsule, blocks).eyebrow, 'Canvas Capsule');
+  const blocks = getCapsuleBlocks(capsule);
+  assert.equal(blocks[0].type, 'link');
+  assert.equal(getCapsuleEmbedPreview(capsule, blocks).eyebrow, 'Capsule');
 
   const serialized = serializeCapsuleBlocks(blocks);
-  assert.match(serialized, /\[Canvas\]/);
-  assert.match(serialized, /canvasId: canvas-smoke/);
-  assert.equal(parseCapsuleBodyToBlocks(serialized, { canvasesById })[0].entry, canvas.entry);
+  assert.equal(parseCapsuleBodyToBlocks(serialized)[0].type, 'link');
 
   const articleBlocks = getArticleBlocks({
-    body: 'Intro paragraph.\n\n## A long-form section\n\n> A pull quote.'
-  });
-  assert.deepEqual(articleBlocks.map((block) => block.type), ['paragraph', 'heading', 'quote']);
+    body: 'Intro paragraph.\n\n## A long-form section\n\n[Toy]\ntoyId: toy-smoke\n\n> A pull quote.'
+  }, { toysById });
+  assert.deepEqual(articleBlocks.map((block) => block.type), ['paragraph', 'heading', 'toy', 'quote']);
+  assert.equal(articleBlocks[2].entry, toy.entry);
 }
 
 async function runBrowsePathSmoke() {
@@ -138,12 +136,12 @@ async function runBrowsePathSmoke() {
   await request(assetMatch[1]);
 
   const data = (await request('/data.json')).json();
-  assert.ok(Array.isArray(data.canvases) && data.canvases.length > 0, 'data.json should expose canvases');
+  assert.ok(Array.isArray(data.toys) && data.toys.length > 0, 'data.json should expose toys');
 
-  const firstCanvas = data.canvases.find((canvas) => canvas.entry) || data.canvases[0];
-  assert.ok(firstCanvas?.entry, 'at least one canvas should have an entry');
-  const canvasPage = await request(firstCanvas.entry);
-  assert.match(canvasPage.text, /<canvas|interactive|Canvas/i);
+  const firstToy = data.toys.find((toy) => toy.entry) || data.toys[0];
+  assert.ok(firstToy?.entry, 'at least one toy should have an entry');
+  const toyPage = await request(firstToy.entry);
+  assert.match(toyPage.text, /<canvas|interactive|Toy/i);
 }
 
 async function runPublishFlowSmoke() {

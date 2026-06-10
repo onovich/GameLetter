@@ -11,29 +11,8 @@
     "homepageShowsIssuesOnly": false,
     "rssSources": ["issues", "articles"],
     "homepageShows": ["issues", "articles"],
-    "searchScopes": ["all", "issues", "capsules", "flows", "articles", "canvases"]
+    "searchScopes": ["all", "issues", "capsules", "flows", "articles", "toys"]
   },
-  "canvases": [
-    {
-      "id": "canvas-orbit-field",
-      "slug": "orbit-field",
-      "kind": "canvas",
-      "title": "Orbit Canvas Prototype",
-      "summary": "内置可交互 HTML，可作为可视化演示或小游戏原型被 Capsule 引用。",
-      "tags": ["Canvas", "Prototype", "Interactive"],
-      "publishedAt": "2026-06-09T20:20:00+08:00",
-      "entry": "/canvases/orbit-field/index.html",
-      "aspectRatio": "16 / 9",
-      "allowFullscreen": true,
-      "visibility": {
-        "direct": true,
-        "search": true,
-        "homepage": false,
-        "feed": false,
-        "rss": false
-      }
-    }
-  ],
   "capsules": [
     {
       "id": "capsule-20260422-01",
@@ -120,30 +99,6 @@
         "type": "thought",
         "content": "最好的架构，不是最能炫技的那套，而是一周后你还愿意继续维护它的那套。",
         "author": "Editor"
-      }
-    },
-    {
-      "id": "capsule-20260609-canvas-01",
-      "slug": "orbit-canvas-prototype",
-      "kind": "capsule",
-      "title": "Orbit Canvas Prototype",
-      "summary": "一个内置 HTML Canvas 小实验，用来验证交互内容胶囊的展示方式。",
-      "tags": ["Canvas", "Prototype", "Interactive"],
-      "publishedAt": "2026-06-09T20:20:00+08:00",
-      "visibility": {
-        "direct": true,
-        "search": true,
-        "homepage": false,
-        "feed": false,
-        "rss": false
-      },
-      "payload": {
-        "type": "canvas",
-        "canvasId": "canvas-orbit-field",
-        "entry": "/canvases/orbit-field/index.html",
-        "aspectRatio": "16 / 9",
-        "allowFullscreen": true,
-        "caption": "内置可交互 HTML，可作为可视化演示或小游戏原型被 Issue / Article 引用。"
       }
     }
   ],
@@ -249,11 +204,11 @@
         },
         {
           "type": "paragraph",
-          "content": "当一篇文章需要解释动态反馈、空间关系或小游戏机制时，Canvas Capsule 可以作为文章中的可交互论据，而不是只能贴一张静态图。"
+          "content": "当一篇文章需要解释动态反馈、空间关系或小游戏机制时，Toy 可以作为文章中的可交互论据，而不是只能贴一张静态图。"
         },
         {
-          "type": "canvas-ref",
-          "capsuleId": "capsule-20260609-canvas-01"
+          "type": "toy-ref",
+          "toyId": "toy-orbit-field"
         },
         {
           "type": "quote",
@@ -272,6 +227,27 @@
       "body": "Flow 不承担 newsletter 的整理感，也不要求像 Article 那样完整展开。\n\n它更像站内公开笔记：可以被搜索，可以被直链访问，但默认不进入 RSS，也不应该污染正式发布流。\n\n这样保留了写作的低压力入口，同时不会稀释 Issue 和 Article 的发布价值。",
       "tags": ["Flow", "Meta"],
       "publishedAt": "2026-06-09T20:25:00+08:00",
+      "visibility": {
+        "direct": true,
+        "search": true,
+        "homepage": false,
+        "feed": false,
+        "rss": false
+      }
+    }
+  ],
+  "toys": [
+    {
+      "id": "toy-orbit-field",
+      "slug": "orbit-field",
+      "kind": "toy",
+      "title": "Orbit Toy Prototype",
+      "summary": "????? HTML???????????????? Article ???",
+      "tags": ["Toy", "Prototype", "Interactive"],
+      "publishedAt": "2026-06-09T20:20:00+08:00",
+      "entry": "/toys/orbit-field/index.html",
+      "aspectRatio": "16 / 9",
+      "allowFullscreen": true,
       "visibility": {
         "direct": true,
         "search": true,

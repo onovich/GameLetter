@@ -7,7 +7,7 @@ export const editorModes = [
   { key: 'capsule', label: 'Capsule' },
   { key: 'flow', label: 'Flow' },
   { key: 'article', label: 'Article' },
-  { key: 'canvas', label: 'Canvas' }
+  { key: 'toy', label: 'Toy' }
 ];
 
 export const defaultSettings = {
@@ -40,7 +40,7 @@ export const defaultSettings = {
   issueTabColor: '#86cbbf',
   flowTabColor: '#f59e0b',
   articleTabColor: '#8b5cf6',
-  canvasTabColor: '#14b8a6',
+  toyTabColor: '#14b8a6',
   linkColor: '#2f6fb2',
   linkBorderColor: '#bcd2ea',
   linkBgColor: '#f6fbff',

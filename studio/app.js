@@ -56,7 +56,7 @@ const elements = {
 
 const state = {
   mode: 'issue',
-  dataSource: { capsules: [], issues: [], flows: [], articles: [], columns: [], canvases: [], features: {} },
+  dataSource: { capsules: [], issues: [], flows: [], articles: [], columns: [], toys: [], features: {} },
   inboxFiles: [],
   draggingBlockId: null,
   draggingContext: null,
@@ -84,7 +84,7 @@ const state = {
     fields: [],
     variant: '',
     query: '',
-    selectedCanvasId: '',
+    selectedToyId: '',
     preview: null,
     resolve: null
   },
@@ -125,7 +125,7 @@ const state = {
       activeTags: [],
       editing: {}
     },
-    canvas: {
+    toy: {
       page: 1,
       search: '',
       activeTags: [],
@@ -219,7 +219,7 @@ function applySettingsTheme() {
   root.style.setProperty('--issue-tab-color', settings.issueTabColor);
   root.style.setProperty('--flow-tab-color', settings.flowTabColor);
   root.style.setProperty('--article-tab-color', settings.articleTabColor);
-  root.style.setProperty('--canvas-tab-color', settings.canvasTabColor);
+  root.style.setProperty('--toy-tab-color', settings.toyTabColor);
   root.style.setProperty('--text', settings.textColor);
   root.style.setProperty('--issue-body-color', settings.issueBodyColor);
   root.style.setProperty('--capsule-body-color', settings.capsuleBodyColor);
@@ -347,26 +347,26 @@ function renderCommandDialog() {
   elements.commandDialog.setAttribute('aria-hidden', 'false');
   elements.commandDialogTitle.textContent = state.commandDialog.title || '插入内容';
 
-  if (state.commandDialog.variant === 'canvas-picker') {
+  if (state.commandDialog.variant === 'toy-picker') {
     const query = state.commandDialog.query || '';
-    const candidates = getCanvasCandidates(query);
+    const candidates = getToyCandidates(query);
     elements.commandDialogBody.innerHTML = `
       <div class="action-dialog-field">
-        <label for="command-field-canvas-query">Canvas 名称</label>
-        <input id="command-field-canvas-query" data-canvas-picker-query type="text" value="${escapeHtml(query)}" placeholder="输入名称检索 Canvas" />
+        <label for="command-field-toy-query">Toy 名称</label>
+        <input id="command-field-toy-query" data-toy-picker-query type="text" value="${escapeHtml(query)}" placeholder="输入名称检索 Toy" />
       </div>
-      <div class="canvas-picker-list">
+      <div class="toy-picker-list">
         ${candidates.length ? candidates.map((item) => `
-          <button class="canvas-picker-item ${state.commandDialog.selectedCanvasId === item.sourceId ? 'active' : ''}" type="button" data-action="canvas-picker-select" data-value="${escapeHtml(item.sourceId)}">
-            <strong>${escapeHtml(item.title || 'Canvas')}</strong>
+          <button class="toy-picker-item ${state.commandDialog.selectedToyId === item.sourceId ? 'active' : ''}" type="button" data-action="toy-picker-select" data-value="${escapeHtml(item.sourceId)}">
+            <strong>${escapeHtml(item.title || 'Toy')}</strong>
             <small>${escapeHtml(item.text || item.entry || '')}</small>
           </button>
-        `).join('') : '<p class="hint">没有找到匹配的 Canvas。</p>'}
+        `).join('') : '<p class="hint">没有找到匹配的 Toy。</p>'}
       </div>
     `;
 
     requestAnimationFrame(() => {
-      const input = elements.commandDialogBody.querySelector('[data-canvas-picker-query]');
+      const input = elements.commandDialogBody.querySelector('[data-toy-picker-query]');
       if (input) {
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
@@ -420,7 +420,7 @@ function openCommandDialog({ title = '插入内容', fields = [] } = {}) {
       fields: fields.map((field) => ({ ...field })),
       variant: '',
       query: '',
-      selectedCanvasId: '',
+      selectedToyId: '',
       preview: null,
       resolve
     };
@@ -428,15 +428,15 @@ function openCommandDialog({ title = '插入内容', fields = [] } = {}) {
   });
 }
 
-function openCanvasPickerDialog(initialQuery = '') {
+function openToyPickerDialog(initialQuery = '') {
   return new Promise((resolve) => {
     state.commandDialog = {
       open: true,
-      title: '选择 Canvas',
+      title: '选择 Toy',
       fields: [],
-      variant: 'canvas-picker',
+      variant: 'toy-picker',
       query: initialQuery,
-      selectedCanvasId: '',
+      selectedToyId: '',
       preview: null,
       resolve
     };
@@ -451,7 +451,7 @@ function openPublishPreviewDialog(preview) {
     fields: [],
     variant: 'publish-preview',
     query: '',
-    selectedCanvasId: '',
+    selectedToyId: '',
     preview,
     resolve: null
   };
@@ -466,7 +466,7 @@ function closeCommandDialog(result = null) {
     fields: [],
     variant: '',
     query: '',
-    selectedCanvasId: '',
+    selectedToyId: '',
     preview: null,
     resolve: null
   };
@@ -477,9 +477,9 @@ function closeCommandDialog(result = null) {
 }
 
 function confirmCommandDialog() {
-  if (state.commandDialog.variant === 'canvas-picker') {
-    const candidates = getCanvasCandidates(state.commandDialog.query || '');
-    const selected = candidates.find((item) => item.sourceId === state.commandDialog.selectedCanvasId) || candidates[0] || null;
+  if (state.commandDialog.variant === 'toy-picker') {
+    const candidates = getToyCandidates(state.commandDialog.query || '');
+    const selected = candidates.find((item) => item.sourceId === state.commandDialog.selectedToyId) || candidates[0] || null;
     closeCommandDialog(selected);
     return;
   }
@@ -508,17 +508,17 @@ function createLinkBlock(text = '', url = '') {
   return { id: uid('link'), type: 'link', text, url };
 }
 
-function createCanvasBlock(canvas = {}) {
+function createToyBlock(toy = {}) {
   return {
-    id: uid('canvas'),
-    type: 'canvas',
-    canvasId: canvas.id || canvas.canvasId || '',
-    entry: canvas.entry || canvas.src || canvas.url || '',
-    title: canvas.title || 'Canvas',
-    caption: canvas.summary || canvas.caption || '',
-    aspectRatio: canvas.aspectRatio || '16 / 9',
-    allowFullscreen: canvas.allowFullscreen !== false,
-    tags: canvas.tags || []
+    id: uid('toy'),
+    type: 'toy',
+    toyId: toy.id || toy.toyId || '',
+    entry: toy.entry || toy.src || toy.url || '',
+    title: toy.title || 'Toy',
+    caption: toy.summary || toy.caption || '',
+    aspectRatio: toy.aspectRatio || '16 / 9',
+    allowFullscreen: toy.allowFullscreen !== false,
+    tags: toy.tags || []
   };
 }
 
@@ -560,8 +560,8 @@ function toEditorBlock(block) {
   if (block.type === 'link') {
     return createLinkBlock(block.text || block.title || block.url || '', block.url || '');
   }
-  if (block.type === 'canvas') {
-    return createCanvasBlock(block);
+  if (block.type === 'toy') {
+    return createToyBlock(block);
   }
   return createTextBlock(block.text || block.content || '');
 }
@@ -684,13 +684,13 @@ function parseChunkToBlock(chunk = '', capsuleMap = new Map()) {
         };
   }
 
-  return toEditorBlock(parseCapsuleChunkToBlock(normalized, { canvasById: getCanvasMap() }));
+  return toEditorBlock(parseCapsuleChunkToBlock(normalized));
 }
 
 function parseCapsuleBodyToBlocks(body = '') {
   const blocks = normalizeLineEndings(body)
     .split(/\n{2,}/)
-    .map((chunk) => parseCapsuleChunkToBlock(chunk, { canvasById: getCanvasMap() }))
+    .map((chunk) => parseCapsuleChunkToBlock(chunk))
     .map(toEditorBlock)
     .filter(Boolean);
   return blocks.length ? blocks : [createTextBlock('')];
@@ -705,7 +705,7 @@ function getPublishedCapsuleBlocks(capsule) {
     return [createTextBlock('')];
   }
 
-  const normalizedBlocks = getSharedCapsuleBlocks(capsule, { canvasById: getCanvasMap() })
+  const normalizedBlocks = getSharedCapsuleBlocks(capsule)
     .map(toEditorBlock)
     .filter(Boolean);
 
@@ -786,6 +786,16 @@ function renderModeNavigation() {
   editorModes.forEach((mode) => {
     modeTabs.classList.toggle(`${mode.key}-active`, state.mode === mode.key);
   });
+  const activeModeIndex = Math.max(0, editorModes.findIndex((mode) => mode.key === state.mode));
+  modeTabs.style.setProperty('--active-offset', `${activeModeIndex * 60}px`);
+  const activeModeColorVar = {
+    capsule: '--capsule-tab-color',
+    issue: '--issue-tab-color',
+    flow: '--flow-tab-color',
+    article: '--article-tab-color',
+    toy: '--toy-tab-color'
+  }[state.mode] || '--issue-tab-color';
+  modeTabs.style.setProperty('--active-color', `var(${activeModeColorVar})`);
   modeTabs.dataset.mode = state.mode;
   modeTabs.querySelectorAll('[data-mode-tab]').forEach((tab) => {
     tab.classList.toggle('active', tab.dataset.modeTab === state.mode);
@@ -796,8 +806,8 @@ function getCapsuleMap() {
   return new Map((state.dataSource.capsules || []).map((item) => [item.id, item]));
 }
 
-function getCanvasMap() {
-  return new Map((state.dataSource.canvases || []).map((item) => [item.id, item]));
+function getToyMap() {
+  return new Map((state.dataSource.toys || []).map((item) => [item.id, item]));
 }
 
 function getPublishedCapsuleText(capsule) {
@@ -996,7 +1006,10 @@ function buildCapsuleItems() {
   const selectedTags = state.ui.capsule.activeTags || [];
   const tagFiltered = !selectedTags.length
     ? searched
-    : searched.filter((item) => item.tags.some((tag) => selectedTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase())));
+    : searched.filter((item) => {
+      const itemTags = (item.tags || []).map((tag) => tag.toLowerCase());
+      return selectedTags.every((selectedTag) => itemTags.includes(selectedTag.toLowerCase()));
+    });
 
   return tagFiltered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
@@ -1056,7 +1069,10 @@ function buildIssueItems() {
   const selectedTags = state.ui.issue.activeTags || [];
   const tagFiltered = !selectedTags.length
     ? filtered
-    : filtered.filter((item) => item.tags.some((tag) => selectedTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase())));
+    : filtered.filter((item) => {
+      const itemTags = (item.tags || []).map((tag) => tag.toLowerCase());
+      return selectedTags.every((selectedTag) => itemTags.includes(selectedTag.toLowerCase()));
+    });
   return tagFiltered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
@@ -1091,8 +1107,8 @@ function articleBlocksToPlainText(blocks = []) {
       if (block.type === 'capsule-ref') {
         return `[引用 Capsule]\ncapsuleId: ${block.capsuleId || ''}`;
       }
-      if (block.type === 'canvas-ref') {
-        return `[引用 Canvas]\ncanvasId: ${block.canvasId || block.capsuleId || ''}`;
+      if (block.type === 'toy-ref') {
+        return `[引用 Toy]\ntoyId: ${block.toyId || ''}`;
       }
       return block.content || block.text || '';
     })
@@ -1136,15 +1152,15 @@ function getPlainModeConfig(kind) {
       bodyFromPublished: (item) => item.body || item.content || articleBlocksToPlainText(item.blocks || []),
       summaryFromPublished: (item) => item.summary || ''
     },
-    canvas: {
-      collection: 'canvases',
-      cardClass: 'canvas-card',
-      title: 'Canvas',
-      composerTitle: '添加 Canvas',
+    toy: {
+      collection: 'toys',
+      cardClass: 'toy-card',
+      title: 'Toy',
+      composerTitle: '添加 Toy',
       primaryFieldLabel: '说明',
-      primaryFieldPlaceholder: '写一句这个 Canvas 可以演示什么。',
-      saveLabel: '保存 Canvas',
-      searchPlaceholder: '搜索 Canvas',
+      primaryFieldPlaceholder: '写一句这个 Toy 可以演示什么。',
+      saveLabel: '保存 Toy',
+      searchPlaceholder: '搜索 Toy',
       bodyFromPublished: (item) => item.summary || item.description || '',
       summaryFromPublished: (item) => item.summary || item.description || ''
     }
@@ -1214,7 +1230,10 @@ function buildPlainModeItems(kind) {
   const selectedTags = state.ui[kind]?.activeTags || [];
   const tagFiltered = !selectedTags.length
     ? searched
-    : searched.filter((item) => (item.tags || []).some((tag) => selectedTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase())));
+    : searched.filter((item) => {
+      const itemTags = (item.tags || []).map((tag) => tag.toLowerCase());
+      return selectedTags.every((selectedTag) => itemTags.includes(selectedTag.toLowerCase()));
+    });
   return tagFiltered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
@@ -1226,28 +1245,8 @@ function buildArticleItems() {
   return buildPlainModeItems('article');
 }
 
-function buildCanvasItems() {
-  const items = buildPlainModeItems('canvas');
-  if (items.length) {
-    return items;
-  }
-  return (state.dataSource.capsules || [])
-    .filter((capsule) => capsule.payload?.type === 'canvas')
-    .map((capsule) => ({
-      key: capsule.payload.canvasId || capsule.id,
-      id: capsule.payload.canvasId || capsule.id,
-      title: capsule.title,
-      summary: capsule.summary || capsule.payload.caption || '',
-      body: capsule.summary || capsule.payload.caption || '',
-      tags: capsule.tags || [],
-      status: 'published',
-      createdAt: capsule.publishedAt,
-      updatedAt: capsule.publishedAt,
-      isPublished: true,
-      entry: capsule.payload.entry || capsule.payload.src || capsule.payload.url || '',
-      aspectRatio: capsule.payload.aspectRatio || '16 / 9',
-      allowFullscreen: capsule.payload.allowFullscreen !== false
-    }));
+function buildToyItems() {
+  return buildPlainModeItems('toy');
 }
 
 function getRecentTags(limit = 5) {
@@ -1263,12 +1262,12 @@ function getRecentTags(limit = 5) {
   [...(state.dataSource.issues || [])]
     .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
     .forEach((issue) => (issue.tags || []).forEach(addTag));
-  [...(state.dataSource.flows || []), ...(state.dataSource.articles || []), ...(state.dataSource.canvases || [])]
+  [...(state.dataSource.flows || []), ...(state.dataSource.articles || []), ...(state.dataSource.toys || [])]
     .sort((a, b) => new Date(b.publishedAt || b.id) - new Date(a.publishedAt || a.id))
     .forEach((item) => (item.tags || []).forEach(addTag));
   getCapsuleDrafts().forEach((draft) => draft.tags.forEach(addTag));
   getIssueDrafts().forEach((draft) => draft.tags.forEach(addTag));
-  ['flow', 'article', 'canvas'].forEach((kind) => getModeDrafts(kind).forEach((draft) => draft.tags.forEach(addTag)));
+  ['flow', 'article', 'toy'].forEach((kind) => getModeDrafts(kind).forEach((draft) => draft.tags.forEach(addTag)));
   return recent.slice(0, limit);
 }
 
@@ -1283,10 +1282,10 @@ function getAllTags() {
   (state.dataSource.issues || []).forEach((issue) => (issue.tags || []).forEach(addTag));
   (state.dataSource.flows || []).forEach((flow) => (flow.tags || []).forEach(addTag));
   (state.dataSource.articles || []).forEach((article) => (article.tags || []).forEach(addTag));
-  (state.dataSource.canvases || []).forEach((canvas) => (canvas.tags || []).forEach(addTag));
+  (state.dataSource.toys || []).forEach((toy) => (toy.tags || []).forEach(addTag));
   getCapsuleDrafts().forEach((draft) => draft.tags.forEach(addTag));
   getIssueDrafts().forEach((draft) => draft.tags.forEach(addTag));
-  ['flow', 'article', 'canvas'].forEach((kind) => getModeDrafts(kind).forEach((draft) => draft.tags.forEach(addTag)));
+  ['flow', 'article', 'toy'].forEach((kind) => getModeDrafts(kind).forEach((draft) => draft.tags.forEach(addTag)));
   return tags;
 }
 
@@ -1366,9 +1365,9 @@ function getCapsuleCandidates(query = '') {
     .map((item) => ({ id: item.id || item.fileName, title: item.title, text: item.text, tags: item.tags, sourceId: item.id }));
 }
 
-function getCanvasCandidates(query = '') {
+function getToyCandidates(query = '') {
   const normalizedQuery = query.trim().toLowerCase();
-  const items = buildCanvasItems().filter((item) => item.status !== 'pendingDelete' && item.entry);
+  const items = buildToyItems().filter((item) => item.status !== 'pendingDelete' && item.entry);
   const filtered = normalizedQuery
     ? items.filter((item) => `${item.title} ${item.summary} ${item.body} ${item.entry} ${(item.tags || []).join(' ')}`.toLowerCase().includes(normalizedQuery))
     : items;
@@ -1542,7 +1541,6 @@ function updateSlashSuggestion(textarea, targetKey) {
     ? [
         { id: 'image', description: '插入图片并输入链接' },
         { id: 'link', description: '插入链接卡片并填写标题与地址' },
-        { id: 'canvas', description: '检索并插入一个 Canvas' }
       ]
     : [
         { id: 'link', description: '插入链接卡片并填写标题与地址' }
@@ -1755,42 +1753,6 @@ async function insertCapsuleLinkFromCommand(owner, blockId) {
   hideSuggestion();
 }
 
-async function insertCapsuleCanvasFromCommand(owner, blockId) {
-  const suggestionSnapshot = { ...state.suggestion };
-  const canvas = await openCanvasPickerDialog();
-  if (!canvas) {
-    hideSuggestion();
-    return;
-  }
-  const blocks = [...getCapsuleEditorBlocks(owner)];
-  const blockIndex = blocks.findIndex((block) => block.id === blockId);
-  if (blockIndex === -1) {
-    hideSuggestion();
-    return;
-  }
-
-  const textBlock = blocks[blockIndex];
-  const cleanedText = `${textBlock.text.slice(0, suggestionSnapshot.start)}${textBlock.text.slice(suggestionSnapshot.end)}`.trim();
-  const nextBlocks = [];
-  blocks.forEach((block, index) => {
-    if (index !== blockIndex) {
-      nextBlocks.push(block);
-      return;
-    }
-    if (cleanedText) {
-      nextBlocks.push({ ...block, text: cleanedText });
-    }
-    nextBlocks.push(createCanvasBlock(canvas));
-    const trailingTextBlock = createTextBlock('');
-    nextBlocks.push(trailingTextBlock);
-    state.ui.capsule.focusTarget = `${owner}:${trailingTextBlock.id}`;
-  });
-
-  setCapsuleEditorBlocks(owner, nextBlocks);
-  renderCapsuleWorkspace();
-  hideSuggestion();
-}
-
 async function insertIssueLinkFromCommand(owner, blockId) {
   const suggestionSnapshot = { ...state.suggestion };
   const link = await collectLinkBlockInput();
@@ -1835,10 +1797,6 @@ async function applySlashSuggestion(commandId) {
   }
   if (commandId === 'image' && textarea.matches('[data-capsule-text-target]')) {
     await insertCapsuleImageFromCommand(owner, blockId);
-    return;
-  }
-  if (commandId === 'canvas' && textarea.matches('[data-capsule-text-target]')) {
-    await insertCapsuleCanvasFromCommand(owner, blockId);
     return;
   }
   if (commandId === 'link') {
@@ -2053,7 +2011,7 @@ function renderLinkPreviewMarkup(block, options = {}) {
   `;
 }
 
-function normalizeCanvasEntry(entry = '') {
+function normalizeToyEntry(entry = '') {
   const value = String(entry || '').trim();
   if (!value || /^https?:\/\//i.test(value)) {
     return value;
@@ -2061,19 +2019,19 @@ function normalizeCanvasEntry(entry = '') {
   return `/${value.replace(/^\/+/, '')}`;
 }
 
-function renderCanvasPreviewMarkup(block) {
-  const entry = normalizeCanvasEntry(block.entry);
+function renderToyPreviewMarkup(block) {
+  const entry = normalizeToyEntry(block.entry);
   if (!entry) {
-    return '<div class="canvas-block-preview empty"><div class="canvas-frame-wrap"><div class="image-placeholder">Canvas 入口未填写</div></div></div>';
+    return '<div class="toy-block-preview empty"><div class="toy-frame-wrap"><div class="image-placeholder">Toy 入口未填写</div></div></div>';
   }
   return `
-    <div class="canvas-block-preview">
-      <div class="canvas-frame-wrap" style="aspect-ratio: ${escapeHtml(block.aspectRatio || '16 / 9')}">
-        ${block.allowFullscreen !== false ? `<a class="canvas-fullscreen-link" href="${escapeHtml(entry)}" target="_blank" rel="noreferrer noopener" aria-label="全屏打开 Canvas">全屏打开</a>` : ''}
+    <div class="toy-block-preview">
+      <div class="toy-frame-wrap" style="aspect-ratio: ${escapeHtml(block.aspectRatio || '16 / 9')}">
+        ${block.allowFullscreen !== false ? `<a class="toy-fullscreen-link" href="${escapeHtml(entry)}" target="_blank" rel="noreferrer noopener" aria-label="全屏打开 Toy">全屏打开</a>` : ''}
         <iframe
-          class="canvas-frame"
+          class="toy-frame"
           src="${escapeHtml(entry)}"
-          title="${escapeHtml(block.title || 'Canvas')}"
+          title="${escapeHtml(block.title || 'Toy')}"
           loading="lazy"
           allow="fullscreen"
           sandbox="allow-scripts allow-pointer-lock allow-popups"
@@ -2319,9 +2277,6 @@ function renderCapsuleDisplayBlocks(blocks, expanded = false) {
     if (block.type === 'link') {
       return renderLinkPreviewMarkup(block);
     }
-    if (block.type === 'canvas') {
-      return renderCanvasPreviewMarkup(block);
-    }
     const collapsed = capsuleNeedsCollapse(block.text) && !expanded;
     return `<div class="capsule-content ${collapsed ? 'collapsed' : ''}">${renderTextContent(block.text || '')}</div>`;
   }).join('');
@@ -2329,14 +2284,12 @@ function renderCapsuleDisplayBlocks(blocks, expanded = false) {
 
 function renderCapsulePreviewBlocks(blocks = [], fallbackText = '') {
   const previewBlocks = [];
-  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link' || block.type === 'canvas');
+  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link');
   const firstText = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
 
   if (firstMedia) {
     if (firstMedia.type === 'image') {
       previewBlocks.push(renderImagePreviewMarkup(firstMedia));
-    } else if (firstMedia.type === 'canvas') {
-      previewBlocks.push(renderCanvasPreviewMarkup(firstMedia));
     } else {
       previewBlocks.push(renderLinkPreviewMarkup(firstMedia));
     }
@@ -2344,7 +2297,7 @@ function renderCapsulePreviewBlocks(blocks = [], fallbackText = '') {
 
   if (firstText) {
     previewBlocks.push(`<div class="capsule-content collapsed">${renderTextContent(firstText.text || '')}</div>`);
-  } else if (firstMedia?.type !== 'canvas' && String(fallbackText || '').trim()) {
+  } else if (String(fallbackText || '').trim()) {
     previewBlocks.push(`<div class="capsule-content collapsed">${renderTextContent(fallbackText)}</div>`);
   }
 
@@ -2388,18 +2341,6 @@ function renderCapsuleEditorBlocks(owner, blocks) {
         </div>
       `;
     }
-    if (block.type === 'canvas') {
-      return `
-        ${dropZone}
-        <div class="capsule-block canvas-block draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="capsule" data-drag-owner="${owner}">
-          ${renderCanvasPreviewMarkup(block)}
-          <div class="image-inline-actions">
-            <span class="hint">${renderTextContent(block.title || 'Canvas')}</span>
-            <button class="ghost small danger" data-action="capsule-remove-block" data-owner="${owner}" data-block-id="${block.id}">删除</button>
-          </div>
-        </div>
-      `;
-    }
     return `
       ${dropZone}
       <div class="capsule-block text-block-row">
@@ -2416,9 +2357,7 @@ function renderCapsuleCard(item) {
   const editing = Boolean(state.ui.capsule.editing[item.key]);
   const blocks = editing ? getCapsuleEditorBlocks(item.key) : item.blocks;
   const tags = editing ? extractCapsuleTagsFromBlocks(blocks) : (item.tags || []);
-  const hasCanvasBlock = blocks.some((block) => block.type === 'canvas');
-  const previewFallbackText = hasCanvasBlock ? '' : item.text;
-  const previewText = editing ? '' : getCapsulePreviewText(blocks, previewFallbackText);
+  const previewText = editing ? '' : getCapsulePreviewText(blocks, item.text);
   return `
     <article class="capsule-card ${item.status}">
       <div class="item-head">
@@ -2720,7 +2659,7 @@ function renderIssueWorkspace() {
 function renderPlainEditorForm(kind, item = null) {
   const config = getPlainModeConfig(kind);
   const key = item?.key || 'composer';
-  const isCanvas = kind === 'canvas';
+  const isToy = kind === 'toy';
   const isArticle = kind === 'article';
   const tags = (item?.tags || []).join(', ');
   const columns = state.dataSource.columns || [];
@@ -2743,10 +2682,10 @@ function renderPlainEditorForm(kind, item = null) {
           <input data-field="summary" type="text" value="${escapeHtml(item?.summary || '')}" placeholder="长文摘要" />
         </label>
       ` : ''}
-      ${isCanvas ? `
+      ${isToy ? `
         <label>
           <span>入口 HTML</span>
-          <input data-field="entry" type="text" value="${escapeHtml(item?.entry || '')}" placeholder="/canvases/demo/index.html" />
+          <input data-field="entry" type="text" value="${escapeHtml(item?.entry || '')}" placeholder="/toys/demo/index.html" />
         </label>
         <label>
           <span>显示比例</span>
@@ -2758,7 +2697,7 @@ function renderPlainEditorForm(kind, item = null) {
           <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="heading">小标题</button>
           <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="quote">引文</button>
           <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="capsule">Capsule 引用</button>
-          <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="canvas">Canvas 论据</button>
+          <button class="ghost small" type="button" data-action="article-insert-template" data-kind="${kind}" data-key="${escapeHtml(key)}" data-template="toy">Toy 论据</button>
         </div>
       ` : ''}
       <label class="plain-editor-wide">
@@ -2769,7 +2708,7 @@ function renderPlainEditorForm(kind, item = null) {
         <span>Tags</span>
         <input data-field="tags" type="text" value="${escapeHtml(tags)}" placeholder="TagA, TagB" />
       </label>
-      ${isCanvas && item?.entry ? `<div class="plain-editor-wide">${renderCanvasPreviewMarkup(item)}</div>` : ''}
+      ${isToy && item?.entry ? `<div class="plain-editor-wide">${renderToyPreviewMarkup(item)}</div>` : ''}
     </div>
   `;
 }
@@ -2800,9 +2739,9 @@ function renderPlainModeCard(kind, item) {
           <button class="ghost" data-action="plain-cancel-edit" data-kind="${kind}" data-key="${escapeHtml(item.key)}">取消</button>
         </div>
       ` : `
-        ${kind === 'canvas' && item.entry ? renderCanvasPreviewMarkup(item) : ''}
+        ${kind === 'toy' && item.entry ? renderToyPreviewMarkup(item) : ''}
         ${item.summary ? `<div class="issue-summary">${renderTextContent(item.summary)}</div>` : ''}
-        ${item.body && kind !== 'canvas' ? `<div class="flow-body">${normalizeLineEndings(item.body).split(/\n{2,}/).filter(Boolean).slice(0, 3).map((paragraph) => `<p>${renderTextContent(paragraph)}</p>`).join('')}</div>` : ''}
+        ${item.body && kind !== 'toy' ? `<div class="flow-body">${normalizeLineEndings(item.body).split(/\n{2,}/).filter(Boolean).slice(0, 3).map((paragraph) => `<p>${renderTextContent(paragraph)}</p>`).join('')}</div>` : ''}
         <div class="card-bottom-row">
           <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${(state.ui[kind]?.activeTags || []).some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="plain-filter-tag" data-kind="${kind}" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
           <div class="card-tools">
@@ -2819,7 +2758,7 @@ function renderPlainModeCard(kind, item) {
 function renderPlainModeWorkspace(kind) {
   const config = getPlainModeConfig(kind);
   renderModeNavigation();
-  const items = kind === 'canvas' ? buildCanvasItems() : buildPlainModeItems(kind);
+  const items = kind === 'toy' ? buildToyItems() : buildPlainModeItems(kind);
   const { currentPage, totalPages, entries } = paginate(items, state.ui[kind].page);
   state.ui[kind].page = currentPage;
   const selectedTags = state.ui[kind].activeTags || [];
@@ -2876,8 +2815,8 @@ function renderWorkspace() {
 }
 
 function getPlainModeItems(kind) {
-  if (kind === 'canvas') {
-    return buildCanvasItems();
+  if (kind === 'toy') {
+    return buildToyItems();
   }
   return buildPlainModeItems(kind);
 }
@@ -2908,22 +2847,26 @@ function readPlainEditorValues(kind, key = 'composer') {
   };
 }
 
-function getArticleTemplateSnippet(template) {
+function getArticleTemplateSnippet(template, selectedItem = null) {
   return {
     heading: '## 小标题',
     quote: '> 引文内容',
     capsule: '[引用 Capsule]\ncapsuleId: capsule-',
-    canvas: '[引用 Canvas]\ncapsuleId: capsule-'
+    toy: `[引用 Toy]\ntoyId: ${selectedItem?.sourceId || selectedItem?.id || 'toy-'}`
   }[template] || '';
 }
 
-function insertArticleTemplate(kind, key, template) {
+async function insertArticleTemplate(kind, key, template) {
   if (kind !== 'article') {
     return;
   }
   const editor = getPlainEditorElement(kind, key || 'composer');
   const textarea = editor?.querySelector('[data-field="body"]');
-  const snippet = getArticleTemplateSnippet(template);
+  const selectedItem = template === 'toy' ? await openToyPickerDialog() : null;
+  if (template === 'toy' && !selectedItem) {
+    return;
+  }
+  const snippet = getArticleTemplateSnippet(template, selectedItem);
   if (!textarea || !snippet) {
     return;
   }
@@ -2950,7 +2893,7 @@ function createPlainExtraFrontmatter(kind, values) {
       columnId: values.columnId || undefined
     };
   }
-  if (kind === 'canvas') {
+  if (kind === 'toy') {
     return {
       summary: values.body || undefined,
       entry: values.entry || undefined,
@@ -2968,11 +2911,11 @@ async function savePlainFromComposer(kind) {
     showToast(`先填写 ${config.title} 标题。`, 'error');
     return;
   }
-  if (kind === 'canvas' && !values.entry) {
-    showToast('Canvas 需要填写入口 HTML。', 'error');
+  if (kind === 'toy' && !values.entry) {
+    showToast('Toy 需要填写入口 HTML。', 'error');
     return;
   }
-  if (kind !== 'canvas' && !values.body) {
+  if (kind !== 'toy' && !values.body) {
     showToast('先写一点正文。', 'error');
     return;
   }
@@ -2997,8 +2940,8 @@ async function savePlainCard(kind, key) {
     showToast('内容不完整，无法保存。', 'error');
     return;
   }
-  if (kind === 'canvas' && !values.entry) {
-    showToast('Canvas 需要填写入口 HTML。', 'error');
+  if (kind === 'toy' && !values.entry) {
+    showToast('Toy 需要填写入口 HTML。', 'error');
     return;
   }
   await saveTask({
@@ -3348,11 +3291,10 @@ function handleClick(event) {
     case 'command-dialog-confirm':
       confirmCommandDialog();
       break;
-    case 'canvas-picker-select': {
-      const selected = getCanvasCandidates(state.commandDialog.query || '').find((item) => item.sourceId === actionTarget.dataset.value);
-      closeCommandDialog(selected || null);
+    case 'toy-picker-select':
+      state.commandDialog.selectedToyId = actionTarget.dataset.value || '';
+      renderCommandDialog();
       break;
-    }
     case 'draft-preview':
       previewDraftPublish(fileName).catch((error) => showToast(error.message, 'error'));
       break;
@@ -3480,7 +3422,7 @@ function handleClick(event) {
       removeIssueBlock(actionTarget.dataset.owner || 'composer', actionTarget.dataset.blockId);
       break;
     case 'article-insert-template':
-      insertArticleTemplate(kind, key, actionTarget.dataset.template || '');
+      insertArticleTemplate(kind, key, actionTarget.dataset.template || '').catch((error) => showToast(error.message, 'error'));
       break;
     case 'plain-save':
       savePlainFromComposer(kind).catch((error) => showToast(error.message, 'error'));
@@ -3566,9 +3508,9 @@ function handleInput(event) {
     return;
   }
 
-  if (target.matches('[data-canvas-picker-query]')) {
+  if (target.matches('[data-toy-picker-query]')) {
     state.commandDialog.query = target.value;
-    state.commandDialog.selectedCanvasId = '';
+    state.commandDialog.selectedToyId = '';
     renderCommandDialog();
     return;
   }
@@ -3599,7 +3541,7 @@ function handleInput(event) {
     return;
   }
 
-  const plainSearchKind = ['flow', 'article', 'canvas'].find((kind) => target.id === `${kind}SearchInput`);
+  const plainSearchKind = ['flow', 'article', 'toy'].find((kind) => target.id === `${kind}SearchInput`);
   if (plainSearchKind) {
     state.ui[plainSearchKind].search = target.value;
     state.ui[plainSearchKind].page = 1;

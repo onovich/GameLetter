@@ -1,10 +1,11 @@
-export const modeOrder = ['issue', 'capsule', 'flow', 'article'];
+export const modeOrder = ['issue', 'capsule', 'flow', 'article', 'toy'];
 
 export const modeMeta = {
-  issue: { label: 'Issue', route: 'issues', className: 'issue-list' },
-  capsule: { label: 'Capsule', route: 'capsules', className: 'capsule-list' },
-  flow: { label: 'Flow', route: 'flows', className: 'flow-list' },
-  article: { label: 'Article', route: 'articles', className: 'article-list' }
+  issue: { label: 'Issue', route: 'issues', className: 'issue-list', colorVar: '--issue-tab-color' },
+  capsule: { label: 'Capsule', route: 'capsules', className: 'capsule-list', colorVar: '--capsule-tab-color' },
+  flow: { label: 'Flow', route: 'flows', className: 'flow-list', colorVar: '--flow-tab-color' },
+  article: { label: 'Article', route: 'articles', className: 'article-list', colorVar: '--article-tab-color' },
+  toy: { label: 'Toy', route: 'toys', className: 'toy-list', colorVar: '--toy-tab-color' }
 };
 
 export function normalizeMode(kind) {

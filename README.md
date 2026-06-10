@@ -13,10 +13,11 @@ GameLetter 是一个基于 GitHub 维护的静态 newsletter / daily brief 项�
 
 当前核心内容模型包括：
 
-- `Capsule`：最小内容胶囊，支持链接、图片、观点和可交互 Canvas
+- `Capsule`：最小内容胶囊，支持链接、图片和观点
 - `Issue`：正式 newsletter / digest，一期编排内容
 - `Flow`：纯文本碎碎念，默认不进 RSS
-- `Article`：长文专栏文章，可归属 `Column`
+- `Article`：长文专栏文章，可归属 `Column`，可引用 Toy
+- `Toy`：独立可交互 HTML，可作为 Article 的交互论据
 
 ## 内容工作台
 
@@ -74,7 +75,7 @@ npm run cms
 - 选择现有 Issue / Capsule 作为目标对象
 - 将现有 Capsule 一键插入到 Issue 操作单中
 - 直接为现有 Issue / Capsule 生成删除草稿
-- 编辑 Flow / Article / Canvas，并在 Capsule 中引用已登记 Canvas
+- 编辑 Flow / Article / Toy，并在 Article 中引用已登记 Toy
 - 自动输出内部 prompt 到 `workbench/pending/latest-prompt.txt`
 - 自动输出最新 request 到 `workbench/pending/latest-request.json`
 - 浏览端动态写入基础 SEO / OG / Twitter Card 元信息
@@ -82,7 +83,7 @@ npm run cms
 
 本轮迭代后，建议把 Prompt CMS 看成“三件事的组合”：
 
-- 编辑器：负责编辑 Capsule / Issue / Flow / Article / Canvas
+- 编辑器：负责编辑 Capsule / Issue / Flow / Article / Toy
 - 操作单生成器：负责把编辑意图落到 inbox
 - prompt 预处理器：负责把待执行意图整理给 Copilot
 

@@ -38,20 +38,20 @@ export function BrowseBlock({ block, onImageClick, collapsed = false }) {
     );
   }
 
-  if (block.type === 'canvas') {
-    const canvasUrl = resolveAssetUrl(block.entry);
+  if (block.type === 'toy') {
+    const toyUrl = resolveAssetUrl(block.entry);
     return (
-      <div className="canvas-block-preview" onClick={(event) => event.stopPropagation()}>
-        <div className="canvas-frame-wrap" style={{ aspectRatio: block.aspectRatio || '16 / 9' }}>
-          {block.allowFullscreen && canvasUrl ? (
-            <a className="canvas-fullscreen-link" href={canvasUrl} target="_blank" rel="noreferrer noopener" aria-label="全屏打开 Canvas">
+      <div className="toy-block-preview" onClick={(event) => event.stopPropagation()}>
+        <div className="toy-frame-wrap" style={{ aspectRatio: block.aspectRatio || '16 / 9' }}>
+          {block.allowFullscreen && toyUrl ? (
+            <a className="toy-fullscreen-link" href={toyUrl} target="_blank" rel="noreferrer noopener" aria-label="全屏打开 Toy">
               全屏打开
             </a>
           ) : null}
           <iframe
-            className="canvas-frame"
-            src={canvasUrl}
-            title={block.title || 'Canvas'}
+            className="toy-frame"
+            src={toyUrl}
+            title={block.title || 'Toy'}
             loading="lazy"
             allow="fullscreen"
             sandbox="allow-scripts allow-pointer-lock allow-popups"

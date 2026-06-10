@@ -40,7 +40,7 @@ function resolveAbsoluteUrl(value = '', site = {}) {
   }
 }
 
-function firstImageFromBlocks(blocks = [], capsulesById, canvasesById, site, depth = 0) {
+function firstImageFromBlocks(blocks = [], capsulesById, toysById, site, depth = 0) {
   if (depth > 2) {
     return '';
   }
@@ -49,10 +49,10 @@ function firstImageFromBlocks(blocks = [], capsulesById, canvasesById, site, dep
     if (block.type === 'image' && block.url) {
       return resolveAbsoluteUrl(block.url, site);
     }
-    if ((block.type === 'capsule-ref' || block.type === 'canvas-ref') && block.capsuleId) {
+    if (block.type === 'capsule-ref' && block.capsuleId) {
       const capsule = capsulesById?.get(block.capsuleId);
       if (capsule) {
-        const image = firstImageFromBlocks(getCapsuleBlocks(capsule, { canvasesById }), capsulesById, canvasesById, site, depth + 1);
+        const image = firstImageFromBlocks(getCapsuleBlocks(capsule), capsulesById, toysById, site, depth + 1);
         if (image) {
           return image;
         }
@@ -63,18 +63,21 @@ function firstImageFromBlocks(blocks = [], capsulesById, canvasesById, site, dep
   return '';
 }
 
-function getEntryBlocks(entry, mode, capsulesById, canvasesById) {
+function getEntryBlocks(entry, mode, capsulesById, toysById) {
   if (!entry) {
     return [];
   }
   if (mode === 'capsule') {
-    return getCapsuleBlocks(entry, { canvasesById });
+    return getCapsuleBlocks(entry);
   }
   if (mode === 'issue') {
-    return getIssueBlocks(entry, { canvasesById });
+    return getIssueBlocks(entry);
   }
   if (mode === 'article') {
-    return getArticleBlocks(entry, { canvasesById });
+    return getArticleBlocks(entry, { toysById });
+  }
+  if (mode === 'toy') {
+    return [{ ...entry, type: 'toy', toyId: entry.id }];
   }
   return [];
 }
@@ -86,11 +89,11 @@ function getBlockText(block) {
   return block.content || block.text || block.caption || block.title || '';
 }
 
-function getEntryDescription(entry, mode, capsulesById, canvasesById, site) {
+function getEntryDescription(entry, mode, capsulesById, toysById, site) {
   if (!entry) {
     return trimDescription(site.description || '');
   }
-  const blocks = getEntryBlocks(entry, mode, capsulesById, canvasesById);
+  const blocks = getEntryBlocks(entry, mode, capsulesById, toysById);
   return trimDescription(
     entry.seo?.description
       || entry.summary
@@ -112,13 +115,13 @@ function getEntryUrl(entry, mode, site) {
   return `${siteBaseUrl}#/${route}/${slug}`;
 }
 
-export function buildSeoState({ site = {}, entry = null, mode = 'issue', capsulesById, canvasesById } = {}) {
+export function buildSeoState({ site = {}, entry = null, mode = 'issue', capsulesById, toysById } = {}) {
   const title = entry?.seo?.title || entry?.title || site.title || 'GameLetter';
   const siteTitle = site.title || 'GameLetter';
-  const description = getEntryDescription(entry, mode, capsulesById, canvasesById, site);
-  const blocks = getEntryBlocks(entry, mode, capsulesById, canvasesById);
+  const description = getEntryDescription(entry, mode, capsulesById, toysById, site);
+  const blocks = getEntryBlocks(entry, mode, capsulesById, toysById);
   const image = resolveAbsoluteUrl(entry?.seo?.image || '', site)
-    || firstImageFromBlocks(blocks, capsulesById, canvasesById, site)
+    || firstImageFromBlocks(blocks, capsulesById, toysById, site)
     || resolveAbsoluteUrl(site.seo?.image || '', site);
   const url = entry?.seo?.canonicalUrl || getEntryUrl(entry, mode, site);
   const type = entry && (mode === 'article' || mode === 'issue') ? 'article' : 'website';

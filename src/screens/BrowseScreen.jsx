@@ -7,6 +7,7 @@ import { BrowseArticleCard } from '../components/cards/BrowseArticleCard';
 import { BrowseCapsuleCard } from '../components/cards/BrowseCapsuleCard';
 import { BrowseFlowCard } from '../components/cards/BrowseFlowCard';
 import { BrowseIssueCard } from '../components/cards/BrowseIssueCard';
+import { BrowseToyCard } from '../components/cards/BrowseToyCard';
 import { modeMeta, modeOrder, buildHash, getCurrentRoute, normalizeMode, parseHashRoute } from '../content/modes';
 import { getArticleSearchText, getCapsuleSearchText, getIssueSearchText, getPlainEntrySearchText, getTagCounts } from '../content/search';
 import { applySeoState, buildSeoState } from '../content/seo';
@@ -23,12 +24,12 @@ function createInitialMode() {
 }
 
 export function BrowseScreen({ data }) {
-  const { site, capsules, issues, flows, articles, columns, canvases, loading, error } = data;
+  const { site, capsules, issues, flows, articles, columns, toys, loading, error } = data;
   const [route, setRoute] = useState(() => getCurrentRoute());
   const [mode, setMode] = useState(createInitialMode);
   const [lightboxImage, setLightboxImage] = useState(null);
-  const [searchByMode, setSearchByMode] = useState({ capsule: '', issue: '', flow: '', article: '' });
-  const [activeTagsByMode, setActiveTagsByMode] = useState({ capsule: [], issue: [], flow: [], article: [] });
+  const [searchByMode, setSearchByMode] = useState({ capsule: '', issue: '', flow: '', article: '', toy: '' });
+  const [activeTagsByMode, setActiveTagsByMode] = useState({ capsule: [], issue: [], flow: [], article: [], toy: [] });
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -48,19 +49,21 @@ export function BrowseScreen({ data }) {
 
   const capsulesById = useMemo(() => new Map(capsules.map((capsule) => [capsule.id, capsule])), [capsules]);
   const columnsById = useMemo(() => new Map((columns || []).map((column) => [column.id, column])), [columns]);
-  const canvasesById = useMemo(() => new Map((canvases || []).map((canvas) => [canvas.id, canvas])), [canvases]);
+  const toysById = useMemo(() => new Map((toys || []).map((toy) => [toy.id, toy])), [toys]);
 
   const sortedIssues = useMemo(() => sortPublishedEntries(issues), [issues]);
   const sortedCapsules = useMemo(() => sortPublishedEntries(capsules), [capsules]);
   const sortedFlows = useMemo(() => sortPublishedEntries(flows), [flows]);
   const sortedArticles = useMemo(() => sortPublishedEntries(articles), [articles]);
+  const sortedToys = useMemo(() => sortPublishedEntries(toys), [toys]);
 
   const filterByTags = (item, currentMode) => {
     const selectedTags = activeTagsByMode[currentMode] || [];
     if (!selectedTags.length) {
       return true;
     }
-    return (item.tags || []).some((tag) => selectedTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()));
+    const itemTags = (item.tags || []).map((tag) => tag.toLowerCase());
+    return selectedTags.every((selectedTag) => itemTags.includes(selectedTag.toLowerCase()));
   };
 
   const filteredIssues = useMemo(() => {
@@ -72,9 +75,9 @@ export function BrowseScreen({ data }) {
       if (!query) {
         return true;
       }
-      return getIssueSearchText(issue, capsulesById, canvasesById).includes(query);
+      return getIssueSearchText(issue, capsulesById).includes(query);
     });
-  }, [sortedIssues, searchByMode.issue, activeTagsByMode.issue, capsulesById, canvasesById]);
+  }, [sortedIssues, searchByMode.issue, activeTagsByMode.issue, capsulesById]);
 
   const filteredCapsules = useMemo(() => {
     const query = searchByMode.capsule.trim().toLowerCase();
@@ -85,9 +88,9 @@ export function BrowseScreen({ data }) {
       if (!query) {
         return true;
       }
-      return getCapsuleSearchText(capsule, canvasesById).includes(query);
+      return getCapsuleSearchText(capsule).includes(query);
     });
-  }, [sortedCapsules, searchByMode.capsule, activeTagsByMode.capsule, canvasesById]);
+  }, [sortedCapsules, searchByMode.capsule, activeTagsByMode.capsule]);
 
   const filteredFlows = useMemo(() => {
     const query = searchByMode.flow.trim().toLowerCase();
@@ -108,9 +111,19 @@ export function BrowseScreen({ data }) {
       if (!query) {
         return true;
       }
-      return getArticleSearchText(article, capsulesById, columnsById, canvasesById).includes(query);
+      return getArticleSearchText(article, capsulesById, columnsById, toysById).includes(query);
     });
-  }, [sortedArticles, searchByMode.article, activeTagsByMode.article, capsulesById, columnsById, canvasesById]);
+  }, [sortedArticles, searchByMode.article, activeTagsByMode.article, capsulesById, columnsById, toysById]);
+
+  const filteredToys = useMemo(() => {
+    const query = searchByMode.toy.trim().toLowerCase();
+    return sortedToys.filter((toy) => {
+      if (!filterByTags(toy, 'toy')) {
+        return false;
+      }
+      return query ? getPlainEntrySearchText(toy).includes(query) : true;
+    });
+  }, [sortedToys, searchByMode.toy, activeTagsByMode.toy]);
 
   const activeIssue = mode === 'issue'
     ? filteredIssues.find((issue) => issue.slug === route.slug) || filteredIssues[0] || null
@@ -128,15 +141,19 @@ export function BrowseScreen({ data }) {
     ? filteredArticles.find((article) => article.slug === route.slug) || filteredArticles[0] || null
     : null;
 
-  const activeEntry = { issue: activeIssue, capsule: activeCapsule, flow: activeFlow, article: activeArticle }[mode] || null;
+  const activeToy = mode === 'toy'
+    ? filteredToys.find((toy) => toy.slug === route.slug) || filteredToys[0] || null
+    : null;
+
+  const activeEntry = { issue: activeIssue, capsule: activeCapsule, flow: activeFlow, article: activeArticle, toy: activeToy }[mode] || null;
 
   const seoState = useMemo(() => buildSeoState({
     site: site || {},
     entry: activeEntry,
     mode,
     capsulesById,
-    canvasesById
-  }), [activeEntry, mode, site, capsulesById, canvasesById]);
+    toysById
+  }), [activeEntry, mode, site, capsulesById, toysById]);
 
   useEffect(() => {
     applySeoState(seoState);
@@ -172,13 +189,18 @@ export function BrowseScreen({ data }) {
     openEntry('article', slug);
   };
 
+  const openToy = (slug) => {
+    openEntry('toy', slug);
+  };
+
   const switchMode = (nextMode) => {
     setMode(nextMode);
     const itemsByMode = {
       issue: filteredIssues.length ? filteredIssues : sortedIssues,
       capsule: filteredCapsules.length ? filteredCapsules : sortedCapsules,
       flow: filteredFlows.length ? filteredFlows : sortedFlows,
-      article: filteredArticles.length ? filteredArticles : sortedArticles
+      article: filteredArticles.length ? filteredArticles : sortedArticles,
+      toy: filteredToys.length ? filteredToys : sortedToys
     };
     const nextItems = itemsByMode[nextMode] || [];
     const next = nextItems.find((item) => item.slug === route.slug) || nextItems[0];
@@ -223,17 +245,25 @@ export function BrowseScreen({ data }) {
     issue: sortedIssues,
     capsule: sortedCapsules,
     flow: sortedFlows,
-    article: sortedArticles
+    article: sortedArticles,
+    toy: sortedToys
   };
   const filteredItemsByMode = {
     issue: filteredIssues,
     capsule: filteredCapsules,
     flow: filteredFlows,
-    article: filteredArticles
+    article: filteredArticles,
+    toy: filteredToys
   };
   const currentTagCounts = getTagCounts(sortedItemsByMode[mode] || []);
-  const selectedTags = activeTagsByMode[mode];
-  const displayedItems = filteredItemsByMode[mode] || [];
+  const selectedTags = activeTagsByMode[mode] || [];
+  const shouldShowDetailOnly = ['capsule', 'toy'].includes(mode) && route.kind === mode && route.slug && !currentSearch.trim() && !selectedTags.length;
+  const displayedItems = shouldShowDetailOnly && activeEntry ? [activeEntry] : (filteredItemsByMode[mode] || []);
+  const activeModeIndex = Math.max(0, modeOrder.indexOf(mode));
+  const modeTabsStyle = {
+    '--active-offset': `${activeModeIndex * 60}px`,
+    '--active-color': `var(${modeMeta[mode]?.colorVar || '--issue-tab-color'})`
+  };
 
   return (
     <div className="app-shell">
@@ -241,7 +271,7 @@ export function BrowseScreen({ data }) {
 
       <div className="workspace">
         <aside className="nav-column">
-          <nav className={`mode-tabs ${mode}-active`} aria-label="浏览模式切换">
+          <nav className={`mode-tabs ${mode}-active`} style={modeTabsStyle} aria-label="浏览模式切换">
             <span className="mode-tab-indicator" aria-hidden="true" />
             {modeOrder.map((item) => (
               <button key={item} type="button" className={`mode-tab ${mode === item ? 'active' : ''}`} onClick={() => switchMode(item)}>
@@ -268,7 +298,6 @@ export function BrowseScreen({ data }) {
                         onImageClick={setLightboxImage}
                         onToggleTag={(tag) => toggleTag('capsule', tag)}
                         activeTags={activeTagsByMode.capsule}
-                        canvasesById={canvasesById}
                       />
                     );
                   }
@@ -296,7 +325,19 @@ export function BrowseScreen({ data }) {
                         onToggleTag={(tag) => toggleTag('article', tag)}
                         activeTags={activeTagsByMode.article}
                         capsulesById={capsulesById}
-                        canvasesById={canvasesById}
+                        toysById={toysById}
+                      />
+                    );
+                  }
+                  if (mode === 'toy') {
+                    return (
+                      <BrowseToyCard
+                        key={item.id}
+                        toy={item}
+                        active={activeToy?.id === item.id}
+                        onOpenToy={openToy}
+                        onToggleTag={(tag) => toggleTag('toy', tag)}
+                        activeTags={activeTagsByMode.toy}
                       />
                     );
                   }
@@ -311,7 +352,6 @@ export function BrowseScreen({ data }) {
                       onToggleTag={(tag) => toggleTag('issue', tag)}
                       activeTags={activeTagsByMode.issue}
                       capsulesById={capsulesById}
-                      canvasesById={canvasesById}
                     />
                   );
                 }) : <div className="empty-card"><h3>没有可展示内容</h3><p className="hint">试试清空搜索或标签筛选。</p></div>}

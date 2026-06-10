@@ -109,7 +109,7 @@ npm run build
 - Article 正文中的 `##`、`>`、列表和代码块能被转换并渲染
 - Flow / Capsule / Article 正文中的加粗、斜体、行内代码和安全链接不会破坏布局
 - 页面切换到不同 Issue / Capsule / Flow / Article 后，`document.title`、`meta[name="description"]`、`og:title`、`og:description` 和 canonical 会同步更新
-- `npm run validate:data` 能拦截错误的 SEO 字段、缺失的 Canvas 入口、未知的 visibility 字段和无效 block
+- `npm run validate:data` 能拦截错误的 SEO 字段、缺失的 Toy 入口、未知的 visibility 字段和无效 block
 
 ## 推荐执行顺序
 

@@ -1,6 +1,6 @@
 const IMAGE_MARKERS = new Set(['[图片]', '[Image]', '[image]']);
 const LINK_MARKERS = new Set(['[链接]', '[Link]', '[link]']);
-const CANVAS_MARKERS = new Set(['[Canvas]', '[canvas]']);
+const TOY_REF_MARKERS = new Set(['[引用 Toy]', '[Toy]', '[toy]']);
 const CAPSULE_REF_MARKERS = new Set(['[引用 Capsule]', '[Capsule]', '[capsule]']);
 
 export function normalizeLineEndings(value = '') {
@@ -35,16 +35,16 @@ export function createLinkContentBlock(text = '', url = '') {
   return { type: 'link', text, url };
 }
 
-export function createCanvasContentBlock(canvas = {}) {
+export function createToyContentBlock(toy = {}) {
   return {
-    type: 'canvas',
-    canvasId: canvas.id || canvas.canvasId || '',
-    entry: canvas.entry || canvas.src || canvas.url || '',
-    title: canvas.title || canvas.label || 'Canvas',
-    caption: canvas.summary || canvas.caption || '',
-    aspectRatio: canvas.aspectRatio || '16 / 9',
-    allowFullscreen: canvas.allowFullscreen !== false,
-    tags: canvas.tags || []
+    type: 'toy',
+    toyId: toy.id || toy.toyId || '',
+    entry: toy.entry || toy.src || toy.url || '',
+    title: toy.title || toy.label || 'Toy',
+    caption: toy.summary || toy.caption || '',
+    aspectRatio: toy.aspectRatio || '16 / 9',
+    allowFullscreen: toy.allowFullscreen !== false,
+    tags: toy.tags || []
   };
 }
 
@@ -83,33 +83,33 @@ function parseTagList(value = '') {
     .filter(Boolean);
 }
 
-function resolveCanvas(canvasId = '', options = {}) {
-  const canvasById = options.canvasById || options.canvasesById;
-  if (!canvasId || !canvasById) {
+function resolveToy(toyId = '', options = {}) {
+  const toyById = options.toyById || options.toysById;
+  if (!toyId || !toyById) {
     return null;
   }
-  if (canvasById instanceof Map) {
-    return canvasById.get(canvasId) || null;
+  if (toyById instanceof Map) {
+    return toyById.get(toyId) || null;
   }
-  return canvasById[canvasId] || null;
+  return toyById[toyId] || null;
 }
 
-function normalizeCanvasBlock(block = {}, options = {}) {
-  const canvasId = String(block.canvasId || block.id || '').trim();
-  const canvas = resolveCanvas(canvasId, options);
-  const entry = String(block.entry || block.src || block.url || canvas?.entry || '').trim();
-  if (!entry && !canvasId) {
+function normalizeToyBlock(block = {}, options = {}) {
+  const toyId = String(block.toyId || block.id || '').trim();
+  const toy = resolveToy(toyId, options);
+  const entry = String(block.entry || block.src || block.url || toy?.entry || '').trim();
+  if (!entry && !toyId) {
     return null;
   }
-  return createCanvasContentBlock({
-    ...(canvas || {}),
-    id: canvasId || canvas?.id || '',
-    title: block.title || block.label || canvas?.title || 'Canvas',
-    summary: block.caption || block.summary || canvas?.summary || '',
+  return createToyContentBlock({
+    ...(toy || {}),
+    id: toyId || toy?.id || '',
+    title: block.title || block.label || toy?.title || 'Toy',
+    summary: block.caption || block.summary || toy?.summary || '',
     entry,
-    aspectRatio: block.aspectRatio || canvas?.aspectRatio || '16 / 9',
+    aspectRatio: block.aspectRatio || toy?.aspectRatio || '16 / 9',
     allowFullscreen: block.allowFullscreen !== false,
-    tags: block.tags || canvas?.tags || []
+    tags: block.tags || toy?.tags || []
   });
 }
 
@@ -129,18 +129,6 @@ export function parseCapsuleChunkToBlock(chunk = '', options = {}) {
 
   if (LINK_MARKERS.has(marker)) {
     return createLinkContentBlock(fields.text || fields.title || fields.url || '', fields.url || '');
-  }
-
-  if (CANVAS_MARKERS.has(marker)) {
-    return normalizeCanvasBlock({
-      canvasId: fields.canvasId || fields.id || '',
-      title: fields.title || fields.name || 'Canvas',
-      summary: fields.caption || fields.summary || '',
-      entry: fields.entry || fields.src || fields.url || '',
-      aspectRatio: fields.aspectRatio || '16 / 9',
-      allowFullscreen: fields.allowFullscreen !== 'false',
-      tags: parseTagList(fields.tags || '')
-    }, options);
   }
 
   if (isLikelyImageUrl(normalized)) {
@@ -179,9 +167,6 @@ export function normalizeCapsuleBlock(block, options = {}) {
     const url = String(block.url || '').trim();
     const text = String(block.text || block.title || block.label || url).trim();
     return url || text ? createLinkContentBlock(text, url) : null;
-  }
-  if (type === 'canvas' || type === 'canvas-ref') {
-    return normalizeCanvasBlock(block, options);
   }
   if (type === 'text' || type === 'note' || type === 'thought') {
     return createTextContentBlock(block.text || block.content || '');
@@ -248,6 +233,36 @@ export function normalizeIssueBlock(block, options = {}) {
   return capsuleBlock;
 }
 
+function parseToyChunkToBlock(chunk = '', options = {}) {
+  const normalized = String(chunk || '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const lines = normalized.split('\n').map((line) => line.trim());
+  const marker = lines[0];
+  if (!TOY_REF_MARKERS.has(marker)) {
+    return null;
+  }
+
+  const fields = parseStructuredFields(lines.slice(1));
+  const toyId = String(fields.toyId || fields.id || '').trim();
+  const inlineToy = normalizeToyBlock({
+    toyId,
+    title: fields.title || fields.name || 'Toy',
+    summary: fields.caption || fields.summary || '',
+    entry: fields.entry || fields.src || fields.url || '',
+    aspectRatio: fields.aspectRatio || '16 / 9',
+    allowFullscreen: fields.allowFullscreen !== 'false',
+    tags: parseTagList(fields.tags || '')
+  }, options);
+
+  if (inlineToy?.entry) {
+    return inlineToy;
+  }
+  return toyId ? { type: 'toy-ref', toyId, title: fields.title || toyId } : { type: 'paragraph', content: normalized };
+}
+
 export function normalizeArticleBlock(block, options = {}) {
   if (!block) {
     return null;
@@ -268,8 +283,12 @@ export function normalizeArticleBlock(block, options = {}) {
   if (type === 'code') {
     return createCodeContentBlock(block.content || block.text || block.code || '', block.language || block.lang || '');
   }
-  if (type === 'canvas-ref' && block.capsuleId) {
-    return { type: 'canvas-ref', capsuleId: block.capsuleId };
+  if (type === 'toy-ref') {
+    const toyId = String(block.toyId || block.id || '').trim();
+    return toyId ? { type: 'toy-ref', toyId, title: block.title || toyId } : null;
+  }
+  if (type === 'toy') {
+    return normalizeToyBlock(block, options);
   }
   return normalizeIssueBlock(block, options);
 }
@@ -300,6 +319,11 @@ export function parseArticleChunkToBlock(chunk = '', options = {}) {
     const ordered = listLines.every((line) => /^\d+[.)]\s+/.test(line));
     const items = listLines.map((line) => line.replace(/^([-*+]|\d+[.)])\s+/, '').trim());
     return createListContentBlock(items, ordered);
+  }
+
+  const toyBlock = parseToyChunkToBlock(raw, options);
+  if (toyBlock) {
+    return toyBlock;
   }
 
   const issueBlock = parseIssueChunkToBlock(raw, options);
@@ -341,21 +365,6 @@ export function getCapsuleBlocks(capsule = {}, options = {}) {
   }
 
   const blocks = [];
-
-  if (payload.type === 'canvas') {
-    const canvasId = payload.canvasId || payload.id || '';
-    const canvas = resolveCanvas(canvasId, options);
-    return [createCanvasContentBlock({
-      ...(canvas || {}),
-      id: canvasId || canvas?.id || '',
-      title: payload.title || capsule.title || canvas?.title || 'Canvas',
-      summary: payload.caption || payload.commentary || capsule.summary || canvas?.summary || '',
-      entry: payload.entry || payload.src || payload.url || canvas?.entry || '',
-      aspectRatio: payload.aspectRatio || canvas?.aspectRatio || '16 / 9',
-      allowFullscreen: payload.allowFullscreen !== false,
-      tags: capsule.tags || canvas?.tags || []
-    })];
-  }
 
   if (payload.type === 'link') {
     if (payload.image) {
@@ -457,7 +466,7 @@ export function getCapsuleTextFromBlocks(blocks = []) {
       if (block.type === 'link') {
         return block.text || block.url || '';
       }
-      if (block.type === 'canvas') {
+      if (block.type === 'toy') {
         return [block.title, block.caption, block.entry].filter(Boolean).join(' ');
       }
       if (block.type === 'list') {
@@ -478,7 +487,7 @@ export function capsuleNeedsCollapse(text = '') {
 
 export function getCapsulePreviewBlocks(blocks = []) {
   const preview = [];
-  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link' || block.type === 'canvas');
+  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link');
   const firstText = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
 
   if (firstMedia) {
@@ -505,14 +514,13 @@ export function getCapsulePreviewText(blocks = [], fallbackText = '') {
 
 export function getCapsuleEmbedPreview(capsule = {}, blocks = []) {
   const imageBlock = blocks.find((block) => block.type === 'image' && block.url);
-  const canvasBlock = blocks.find((block) => block.type === 'canvas');
   const textBlock = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
   const linkBlock = blocks.find((block) => block.type === 'link' && String(block.text || block.url || '').trim());
-  const previewText = String(textBlock?.text || capsule.summary || linkBlock?.text || canvasBlock?.caption || '').trim();
+  const previewText = String(textBlock?.text || capsule.summary || linkBlock?.text || '').trim();
 
   return {
     image: imageBlock,
-    eyebrow: canvasBlock ? 'Canvas Capsule' : 'Capsule',
+    eyebrow: 'Capsule',
     text: previewText
   };
 }
@@ -533,18 +541,6 @@ export function serializeCapsuleBlocks(blocks = []) {
           `text: ${String(block.text || '').trim()}`,
           `url: ${String(block.url || '').trim()}`
         ].join('\n').trim();
-      }
-      if (block.type === 'canvas') {
-        return [
-          '[Canvas]',
-          `canvasId: ${String(block.canvasId || '').trim()}`,
-          `title: ${String(block.title || '').trim()}`,
-          `entry: ${String(block.entry || '').trim()}`,
-          `aspectRatio: ${String(block.aspectRatio || '16 / 9').trim()}`,
-          `allowFullscreen: ${block.allowFullscreen !== false}`,
-          `caption: ${String(block.caption || '').trim()}`,
-          block.tags?.length ? `tags: ${block.tags.join(', ')}` : ''
-        ].filter(Boolean).join('\n').trim();
       }
       return String(block.text || '').trim();
     })
