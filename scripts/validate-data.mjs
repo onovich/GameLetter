@@ -392,6 +392,9 @@ function validateData() {
     } else {
       validatePublicFile(entry, `${label} entry`);
     }
+    if (toy.poster) {
+      validatePublicFile(toy.poster, `${label} poster`);
+    }
   });
   issues.forEach((issue, index) => validateBlocks(issue, `issues[${index}]`, capsuleIds, toyIds));
   validateArticles(articles, columnIds, capsuleIds, toyIds);

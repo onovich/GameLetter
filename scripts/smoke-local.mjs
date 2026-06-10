@@ -11,6 +11,7 @@ import {
   parseCapsuleBodyToBlocks,
   serializeCapsuleBlocks
 } from '../shared/content-blocks.js';
+import { buildHash, parseHashRoute } from '../src/content/modes.js';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.env.PROMPT_CMS_SMOKE_PORT || 4387);
@@ -120,6 +121,9 @@ function runContentModelSmoke() {
   }, { toysById });
   assert.deepEqual(articleBlocks.map((block) => block.type), ['paragraph', 'heading', 'toy', 'quote']);
   assert.equal(articleBlocks[2].entry, toy.entry);
+
+  assert.deepEqual(parseHashRoute(buildHash('capsule')), { kind: 'capsule', slug: '' });
+  assert.deepEqual(parseHashRoute(buildHash('capsule', 'designing-better-game-huds')), { kind: 'capsule', slug: 'designing-better-game-huds' });
 }
 
 async function runBrowsePathSmoke() {
@@ -140,6 +144,10 @@ async function runBrowsePathSmoke() {
 
   const firstToy = data.toys.find((toy) => toy.entry) || data.toys[0];
   assert.ok(firstToy?.entry, 'at least one toy should have an entry');
+  assert.ok(firstToy.poster, 'toy should expose a poster preview');
+  assert.ok(!String(firstToy.summary || '').includes('???'), 'toy summary should not contain placeholder question marks');
+  assert.ok(!String(firstToy.summary || '').includes('Article'), 'toy summary should describe the toy itself');
+  await request(firstToy.poster);
   const toyPage = await request(firstToy.entry);
   assert.match(toyPage.text, /<canvas|interactive|Toy/i);
 }

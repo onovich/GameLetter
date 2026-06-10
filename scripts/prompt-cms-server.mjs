@@ -658,6 +658,7 @@ function buildEntryFromOperation(operation, data, existingItem = null) {
       ...base,
       kind: 'toy',
       entry: frontmatter.entry || existingItem?.entry || '',
+      poster: frontmatter.poster || existingItem?.poster || '',
       aspectRatio: frontmatter.aspectRatio || existingItem?.aspectRatio || '16 / 9',
       allowFullscreen: frontmatter.allowFullscreen !== 'false'
     };

@@ -42,6 +42,7 @@ export function createToyContentBlock(toy = {}) {
     entry: toy.entry || toy.src || toy.url || '',
     title: toy.title || toy.label || 'Toy',
     caption: toy.summary || toy.caption || '',
+    poster: toy.poster || toy.previewImage || toy.image || toy.thumbnail || '',
     aspectRatio: toy.aspectRatio || '16 / 9',
     allowFullscreen: toy.allowFullscreen !== false,
     tags: toy.tags || []
@@ -106,6 +107,7 @@ function normalizeToyBlock(block = {}, options = {}) {
     id: toyId || toy?.id || '',
     title: block.title || block.label || toy?.title || 'Toy',
     summary: block.caption || block.summary || toy?.summary || '',
+    poster: block.poster || block.previewImage || block.image || block.thumbnail || toy?.poster || toy?.previewImage || toy?.image || toy?.thumbnail || '',
     entry,
     aspectRatio: block.aspectRatio || toy?.aspectRatio || '16 / 9',
     allowFullscreen: block.allowFullscreen !== false,
@@ -251,6 +253,7 @@ function parseToyChunkToBlock(chunk = '', options = {}) {
     toyId,
     title: fields.title || fields.name || 'Toy',
     summary: fields.caption || fields.summary || '',
+    poster: fields.poster || fields.previewImage || fields.image || fields.thumbnail || '',
     entry: fields.entry || fields.src || fields.url || '',
     aspectRatio: fields.aspectRatio || '16 / 9',
     allowFullscreen: fields.allowFullscreen !== 'false',

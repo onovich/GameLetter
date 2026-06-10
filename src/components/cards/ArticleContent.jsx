@@ -3,8 +3,18 @@ import { renderInlineMarkdown } from '../../content/markdown';
 import { BrowseBlock } from '../blocks/BrowseBlock';
 import { EmbeddedCapsuleCard } from './EmbeddedCapsuleCard';
 
-export function ArticleContent({ article, capsulesById, toysById = new Map(), onOpenCapsule, onImageClick }) {
+export function ArticleContent({
+  article,
+  capsulesById,
+  toysById = new Map(),
+  onOpenCapsule,
+  onImageClick,
+  playingToyKey = '',
+  autoPlayFirstToy = false,
+  onPlayToy
+}) {
   const articleBlocks = getArticleBlocks(article, { toysById });
+  let toyIndex = 0;
 
   return (
     <div className="article-body">
@@ -53,7 +63,19 @@ export function ArticleContent({ article, capsulesById, toysById = new Map(), on
           if (!toy) {
             return null;
           }
-          return <BrowseBlock key={`${article.id}-toy-${index}`} block={{ ...toy, type: 'toy', toyId: toy.id }} onImageClick={onImageClick} />;
+          const currentToyIndex = toyIndex;
+          toyIndex += 1;
+          const toyKey = `article:${article.id}:toy:${toy.id}:${currentToyIndex}`;
+          return (
+            <BrowseBlock
+              key={`${article.id}-toy-${index}`}
+              block={{ ...toy, type: 'toy', toyId: toy.id }}
+              onImageClick={onImageClick}
+              toyKey={toyKey}
+              isPlaying={playingToyKey ? playingToyKey === toyKey : autoPlayFirstToy && currentToyIndex === 0}
+              onPlayToy={onPlayToy}
+            />
+          );
         }
 
         if (block.type === 'note') {
@@ -66,6 +88,21 @@ export function ArticleContent({ article, capsulesById, toysById = new Map(), on
         }
 
         if (block.type === 'link' || block.type === 'image' || block.type === 'toy') {
+          if (block.type === 'toy') {
+            const currentToyIndex = toyIndex;
+            toyIndex += 1;
+            const toyKey = `article:${article.id}:toy:${block.toyId || block.entry || index}:${currentToyIndex}`;
+            return (
+              <BrowseBlock
+                key={`${article.id}-${block.type}-${index}`}
+                block={block}
+                onImageClick={onImageClick}
+                toyKey={toyKey}
+                isPlaying={playingToyKey ? playingToyKey === toyKey : autoPlayFirstToy && currentToyIndex === 0}
+                onPlayToy={onPlayToy}
+              />
+            );
+          }
           return <BrowseBlock key={`${article.id}-${block.type}-${index}`} block={block} onImageClick={onImageClick} />;
         }
 

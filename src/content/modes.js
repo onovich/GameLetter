@@ -17,8 +17,8 @@ export function parseHashRoute(hash) {
   const parts = normalized.split('/').filter(Boolean);
 
   const match = Object.entries(modeMeta).find(([, meta]) => meta.route === parts[0]);
-  if (match && parts[1]) {
-    return { kind: match[0], slug: decodeURIComponent(parts[1]) };
+  if (match) {
+    return { kind: match[0], slug: parts[1] ? decodeURIComponent(parts[1]) : '' };
   }
 
   return { kind: 'home', slug: '' };
@@ -31,6 +31,7 @@ export function getCurrentRoute() {
   return parseHashRoute(window.location.hash);
 }
 
-export function buildHash(kind, slug) {
-  return `/${modeMeta[normalizeMode(kind)].route}/${encodeURIComponent(slug)}`;
+export function buildHash(kind, slug = '') {
+  const route = modeMeta[normalizeMode(kind)].route;
+  return slug ? `/${route}/${encodeURIComponent(slug)}` : `/${route}`;
 }

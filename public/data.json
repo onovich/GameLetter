@@ -242,10 +242,11 @@
       "slug": "orbit-field",
       "kind": "toy",
       "title": "Orbit Toy Prototype",
-      "summary": "????? HTML???????????????? Article ???",
+      "summary": "一个用于测试 Toy 播放、暂停与预览状态的轨道粒子场。",
       "tags": ["Toy", "Prototype", "Interactive"],
       "publishedAt": "2026-06-09T20:20:00+08:00",
       "entry": "/toys/orbit-field/index.html",
+      "poster": "/toys/orbit-field/poster.svg",
       "aspectRatio": "16 / 9",
       "allowFullscreen": true,
       "visibility": {

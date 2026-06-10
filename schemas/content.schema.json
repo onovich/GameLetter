@@ -616,6 +616,9 @@
             "entry": {
               "$ref": "#/$defs/url"
             },
+            "poster": {
+              "type": "string"
+            },
             "aspectRatio": {
               "type": "string"
             },
@@ -658,6 +661,9 @@
           "type": "string"
         },
         "entry": {
+          "type": "string"
+        },
+        "poster": {
           "type": "string"
         },
         "title": {

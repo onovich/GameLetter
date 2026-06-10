@@ -3,7 +3,7 @@ import { renderText } from '../../content/text';
 import { cardMotion } from '../../view/animations';
 import { BrowseBlock } from '../blocks/BrowseBlock';
 
-export function BrowseToyCard({ toy, active, onOpenToy, onToggleTag, activeTags }) {
+export function BrowseToyCard({ toy, active, isPlaying, toyKey, onPlayToy, onOpenToy, onToggleTag, activeTags }) {
   return (
     <motion.article {...cardMotion} className={`toy-card published ${active ? 'active' : ''}`} onClick={() => onOpenToy(toy.slug)}>
       <div className="item-head">
@@ -28,7 +28,12 @@ export function BrowseToyCard({ toy, active, onOpenToy, onToggleTag, activeTags 
       </div>
 
       {toy.summary ? <div className="issue-summary">{renderText(toy.summary)}</div> : null}
-      <BrowseBlock block={{ ...toy, type: 'toy', toyId: toy.id }} />
+      <BrowseBlock
+        block={{ ...toy, type: 'toy', toyId: toy.id }}
+        toyKey={toyKey}
+        isPlaying={isPlaying}
+        onPlayToy={onPlayToy}
+      />
 
       <div className="card-bottom-row">
         <div className="item-tags">

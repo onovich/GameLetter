@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="Orbit Field preview">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="47%" r="70%">
+      <stop offset="0" stop-color="#0b3552"/>
+      <stop offset="0.5" stop-color="#08233d"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </radialGradient>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <g fill="none" stroke="#2dd4bf" stroke-opacity="0.14" stroke-width="2">
+    <ellipse cx="600" cy="338" rx="310" ry="92" transform="rotate(-8 600 338)"/>
+    <ellipse cx="600" cy="338" rx="250" ry="74" transform="rotate(-8 600 338)"/>
+    <ellipse cx="600" cy="338" rx="190" ry="56" transform="rotate(-8 600 338)"/>
+    <ellipse cx="600" cy="338" rx="130" ry="38" transform="rotate(-8 600 338)"/>
+  </g>
+  <g filter="url(#glow)" opacity="0.95">
+    <circle cx="424" cy="250" r="8" fill="#60a5fa"/>
+    <circle cx="456" cy="278" r="7" fill="#a855f7"/>
+    <circle cx="498" cy="294" r="6" fill="#22d3ee"/>
+    <circle cx="548" cy="310" r="8" fill="#c084fc"/>
+    <circle cx="596" cy="330" r="7" fill="#38bdf8"/>
+    <circle cx="638" cy="348" r="9" fill="#f472b6"/>
+    <circle cx="688" cy="372" r="8" fill="#67e8f9"/>
+    <circle cx="736" cy="412" r="9" fill="#a855f7"/>
+    <circle cx="778" cy="448" r="7" fill="#38bdf8"/>
+    <circle cx="512" cy="388" r="7" fill="#60a5fa"/>
+    <circle cx="556" cy="416" r="8" fill="#a855f7"/>
+    <circle cx="614" cy="440" r="6" fill="#22d3ee"/>
+    <circle cx="668" cy="458" r="8" fill="#f472b6"/>
+    <circle cx="716" cy="484" r="7" fill="#60a5fa"/>
+    <circle cx="476" cy="448" r="6" fill="#22d3ee"/>
+    <circle cx="438" cy="396" r="8" fill="#a855f7"/>
+    <circle cx="400" cy="330" r="7" fill="#38bdf8"/>
+    <circle cx="770" cy="296" r="7" fill="#60a5fa"/>
+    <circle cx="716" cy="270" r="8" fill="#c084fc"/>
+    <circle cx="650" cy="248" r="6" fill="#22d3ee"/>
+  </g>
+  <g opacity="0.76">
+    <text x="36" y="48" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="2">ORBIT FIELD</text>
+    <text x="36" y="76" fill="#cbd5e1" font-family="Inter, Arial, sans-serif" font-size="14">interactive toy</text>
+  </g>
+</svg>

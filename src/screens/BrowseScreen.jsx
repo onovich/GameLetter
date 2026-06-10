@@ -8,6 +8,7 @@ import { BrowseCapsuleCard } from '../components/cards/BrowseCapsuleCard';
 import { BrowseFlowCard } from '../components/cards/BrowseFlowCard';
 import { BrowseIssueCard } from '../components/cards/BrowseIssueCard';
 import { BrowseToyCard } from '../components/cards/BrowseToyCard';
+import { getArticleBlocks } from '../content/blocks';
 import { modeMeta, modeOrder, buildHash, getCurrentRoute, normalizeMode, parseHashRoute } from '../content/modes';
 import { getArticleSearchText, getCapsuleSearchText, getIssueSearchText, getPlainEntrySearchText, getTagCounts } from '../content/search';
 import { applySeoState, buildSeoState } from '../content/seo';
@@ -28,6 +29,7 @@ export function BrowseScreen({ data }) {
   const [route, setRoute] = useState(() => getCurrentRoute());
   const [mode, setMode] = useState(createInitialMode);
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [playingToyKey, setPlayingToyKey] = useState('');
   const [searchByMode, setSearchByMode] = useState({ capsule: '', issue: '', flow: '', article: '', toy: '' });
   const [activeTagsByMode, setActiveTagsByMode] = useState({ capsule: [], issue: [], flow: [], article: [], toy: [] });
 
@@ -195,18 +197,8 @@ export function BrowseScreen({ data }) {
 
   const switchMode = (nextMode) => {
     setMode(nextMode);
-    const itemsByMode = {
-      issue: filteredIssues.length ? filteredIssues : sortedIssues,
-      capsule: filteredCapsules.length ? filteredCapsules : sortedCapsules,
-      flow: filteredFlows.length ? filteredFlows : sortedFlows,
-      article: filteredArticles.length ? filteredArticles : sortedArticles,
-      toy: filteredToys.length ? filteredToys : sortedToys
-    };
-    const nextItems = itemsByMode[nextMode] || [];
-    const next = nextItems.find((item) => item.slug === route.slug) || nextItems[0];
-    if (next) {
-      openEntry(nextMode, next.slug);
-    }
+    setPlayingToyKey('');
+    openEntry(nextMode, '');
   };
 
   const toggleTag = (currentMode, tag) => {
@@ -257,14 +249,19 @@ export function BrowseScreen({ data }) {
   };
   const currentTagCounts = getTagCounts(sortedItemsByMode[mode] || []);
   const selectedTags = activeTagsByMode[mode] || [];
+  const selectedTagKey = selectedTags.map((tag) => tag.toLowerCase()).sort().join('|');
   const shouldShowDetailOnly = ['capsule', 'toy'].includes(mode) && route.kind === mode && route.slug && !currentSearch.trim() && !selectedTags.length;
   const displayedItems = shouldShowDetailOnly && activeEntry ? [activeEntry] : (filteredItemsByMode[mode] || []);
+  useEffect(() => {
+    setPlayingToyKey('');
+  }, [mode, route.kind, route.slug, currentSearch, selectedTagKey]);
   const activeModeIndex = Math.max(0, modeOrder.indexOf(mode));
   const activeModeMeta = modeMeta[mode] || modeMeta.issue;
   const modeTabsStyle = {
     '--active-offset': `${activeModeIndex * 60}px`,
     '--active-color': `var(${activeModeMeta.colorVar}, ${activeModeMeta.colorFallback})`
   };
+  let articleAutoPlayAssigned = false;
 
   return (
     <div className="app-shell">
@@ -289,7 +286,7 @@ export function BrowseScreen({ data }) {
           {!loading && !error ? (
             <AnimatePresence initial={false} mode="wait">
               <motion.div key={mode} {...modeContentMotion} className={modeMeta[mode].className}>
-                {displayedItems.length ? displayedItems.map((item) => {
+                {displayedItems.length ? displayedItems.map((item, index) => {
                   if (mode === 'capsule') {
                     return (
                       <BrowseCapsuleCard
@@ -314,15 +311,25 @@ export function BrowseScreen({ data }) {
                     );
                   }
                   if (mode === 'article') {
+                    const isActiveArticle = activeArticle?.id === item.id;
+                    const hasToy = isActiveArticle && getArticleBlocks(item, { toysById }).some((block) => block.type === 'toy' || block.type === 'toy-ref');
+                    const autoPlayFirstToy = !playingToyKey && !articleAutoPlayAssigned && hasToy;
+                    if (hasToy && !articleAutoPlayAssigned) {
+                      articleAutoPlayAssigned = true;
+                    }
+
                     return (
                       <BrowseArticleCard
                         key={item.id}
                         article={item}
-                        active={activeArticle?.id === item.id}
+                        active={isActiveArticle}
                         columnTitle={columnsById.get(item.columnId)?.title || ''}
                         onOpenArticle={openArticle}
                         onOpenCapsule={openCapsule}
                         onImageClick={setLightboxImage}
+                        playingToyKey={playingToyKey}
+                        autoPlayFirstToy={autoPlayFirstToy}
+                        onPlayToy={setPlayingToyKey}
                         onToggleTag={(tag) => toggleTag('article', tag)}
                         activeTags={activeTagsByMode.article}
                         capsulesById={capsulesById}
@@ -336,6 +343,9 @@ export function BrowseScreen({ data }) {
                         key={item.id}
                         toy={item}
                         active={activeToy?.id === item.id}
+                        isPlaying={playingToyKey ? playingToyKey === `toy:${item.id}` : index === 0}
+                        toyKey={`toy:${item.id}`}
+                        onPlayToy={setPlayingToyKey}
                         onOpenToy={openToy}
                         onToggleTag={(tag) => toggleTag('toy', tag)}
                         activeTags={activeTagsByMode.toy}
