@@ -24,7 +24,6 @@
   --flow-tab-color: #f59e0b;
   --article-tab-color: #8b5cf6;
   --toy-tab-color: #14b8a6;
-  --toy-tab-color: var(--toy-tab-color);
   --accent-soft: rgba(116, 167, 247, 0.12);
   --danger: #dc2626;
   --warning: #d97706;

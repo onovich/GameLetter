@@ -789,13 +789,13 @@ function renderModeNavigation() {
   const activeModeIndex = Math.max(0, editorModes.findIndex((mode) => mode.key === state.mode));
   modeTabs.style.setProperty('--active-offset', `${activeModeIndex * 60}px`);
   const activeModeColorVar = {
-    capsule: '--capsule-tab-color',
-    issue: '--issue-tab-color',
-    flow: '--flow-tab-color',
-    article: '--article-tab-color',
-    toy: '--toy-tab-color'
-  }[state.mode] || '--issue-tab-color';
-  modeTabs.style.setProperty('--active-color', `var(${activeModeColorVar})`);
+    capsule: ['--capsule-tab-color', '#74a7f7'],
+    issue: ['--issue-tab-color', '#86cbbf'],
+    flow: ['--flow-tab-color', '#f59e0b'],
+    article: ['--article-tab-color', '#8b5cf6'],
+    toy: ['--toy-tab-color', '#14b8a6']
+  }[state.mode] || ['--issue-tab-color', '#86cbbf'];
+  modeTabs.style.setProperty('--active-color', `var(${activeModeColorVar[0]}, ${activeModeColorVar[1]})`);
   modeTabs.dataset.mode = state.mode;
   modeTabs.querySelectorAll('[data-mode-tab]').forEach((tab) => {
     tab.classList.toggle('active', tab.dataset.modeTab === state.mode);

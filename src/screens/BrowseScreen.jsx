@@ -260,9 +260,10 @@ export function BrowseScreen({ data }) {
   const shouldShowDetailOnly = ['capsule', 'toy'].includes(mode) && route.kind === mode && route.slug && !currentSearch.trim() && !selectedTags.length;
   const displayedItems = shouldShowDetailOnly && activeEntry ? [activeEntry] : (filteredItemsByMode[mode] || []);
   const activeModeIndex = Math.max(0, modeOrder.indexOf(mode));
+  const activeModeMeta = modeMeta[mode] || modeMeta.issue;
   const modeTabsStyle = {
     '--active-offset': `${activeModeIndex * 60}px`,
-    '--active-color': `var(${modeMeta[mode]?.colorVar || '--issue-tab-color'})`
+    '--active-color': `var(${activeModeMeta.colorVar}, ${activeModeMeta.colorFallback})`
   };
 
   return (

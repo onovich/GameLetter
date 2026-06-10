@@ -1,11 +1,11 @@
 export const modeOrder = ['issue', 'capsule', 'flow', 'article', 'toy'];
 
 export const modeMeta = {
-  issue: { label: 'Issue', route: 'issues', className: 'issue-list', colorVar: '--issue-tab-color' },
-  capsule: { label: 'Capsule', route: 'capsules', className: 'capsule-list', colorVar: '--capsule-tab-color' },
-  flow: { label: 'Flow', route: 'flows', className: 'flow-list', colorVar: '--flow-tab-color' },
-  article: { label: 'Article', route: 'articles', className: 'article-list', colorVar: '--article-tab-color' },
-  toy: { label: 'Toy', route: 'toys', className: 'toy-list', colorVar: '--toy-tab-color' }
+  issue: { label: 'Issue', route: 'issues', className: 'issue-list', colorVar: '--issue-tab-color', colorFallback: '#86cbbf' },
+  capsule: { label: 'Capsule', route: 'capsules', className: 'capsule-list', colorVar: '--capsule-tab-color', colorFallback: '#74a7f7' },
+  flow: { label: 'Flow', route: 'flows', className: 'flow-list', colorVar: '--flow-tab-color', colorFallback: '#f59e0b' },
+  article: { label: 'Article', route: 'articles', className: 'article-list', colorVar: '--article-tab-color', colorFallback: '#8b5cf6' },
+  toy: { label: 'Toy', route: 'toys', className: 'toy-list', colorVar: '--toy-tab-color', colorFallback: '#14b8a6' }
 };
 
 export function normalizeMode(kind) {
