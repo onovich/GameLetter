@@ -81,7 +81,27 @@ npm run dev
 
 如果页面不再显示“Giscus 尚未配置”，而是出现真实评论区，就说明配置正确。
 
-## 6. 我能否直接替你配置？
+## 6. CMS 评论管理
+
+Giscus 的评论数据实际存储在 GitHub Discussions 中。浏览页只需要 `VITE_GISCUS_*`，但 CMS 要集中查看和删除评论时，需要一个只在本地 CMS 服务端使用的 GitHub token。
+
+推荐创建一个 fine-grained personal access token：
+
+- Repository access：只选择 `onovich/GameLetter`
+- Repository permissions：`Discussions` 设为 `Read and write`
+- Metadata：保持默认只读
+
+然后在本地启动 CMS 前设置：
+
+```bash
+GITHUB_DISCUSSIONS_TOKEN=你的 token
+```
+
+也可以写入本地 `.env.local`，或用系统环境变量。这个 token 不应提交到 Git，也不需要暴露给前端页面。
+
+配置完成后重新启动 CMS，进入 `Comments` tab，即可集中查看所有 Giscus discussion comments，并删除不需要的评论。
+
+## 7. 我能否直接替你配置？
 
 我可以：
 
@@ -94,10 +114,11 @@ npm run dev
 - 在 GitHub 网页里启用 Discussions
 - 在 Giscus 页面替你点击生成配置
 - 在 GitHub 仓库后台替你写入 Secrets
+- 替你创建或查看 GitHub token 明文
 
 这些步骤需要你已登录 GitHub 并在网页中操作。
 
-## 7. 首次部署检查项
+## 8. 首次部署检查项
 
 - 默认分支为 `main`
 - workflow 位于 `.github/workflows/deploy.yml`

@@ -24,6 +24,7 @@
   --flow-tab-color: #f59e0b;
   --article-tab-color: #8b5cf6;
   --toy-tab-color: #14b8a6;
+  --comments-tab-color: #64748b;
   --accent-soft: rgba(116, 167, 247, 0.12);
   --danger: #dc2626;
   --warning: #d97706;
@@ -212,6 +213,10 @@ textarea:focus, input:focus, select:focus {
   --active-color: var(--toy-tab-color);
 }
 
+.mode-tabs.comments-active {
+  --active-color: var(--comments-tab-color);
+}
+
 .mode-tabs.issue-active {
   --active-color: var(--issue-tab-color);
 }
@@ -396,6 +401,13 @@ button.icon-button.compact-tool {
 
 button:hover { transform: translateY(-1px); }
 button:active { transform: translateY(0); }
+
+button:disabled,
+button:disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
 
 .text-shell {
   border-radius: 22px;
@@ -600,6 +612,7 @@ button.tag-chip {
 .flow-list,
 .article-list,
 .toy-list,
+.comments-list,
 .tag-sidebar-list {
   display: grid;
   gap: 14px;
@@ -610,6 +623,7 @@ button.tag-chip {
 .flow-card,
 .article-card,
 .toy-card,
+.comment-card,
 .issue-editor-card,
 .side-card,
 .empty-card {
@@ -875,6 +889,7 @@ button.tag-chip {
 .flow-card,
 .article-card,
 .toy-card,
+.comment-card,
 .side-card,
 .empty-card {
   position: relative;
@@ -899,6 +914,80 @@ button.tag-chip {
 
 .item-main-compact {
   gap: 2px;
+}
+
+.comment-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.comment-status-grid > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--embed-border);
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.comment-status-grid strong {
+  color: var(--heading);
+  overflow-wrap: anywhere;
+}
+
+.comment-notice {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  background: rgba(255, 251, 235, 0.84);
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.comment-notice.error {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: rgba(254, 242, 242, 0.84);
+  color: var(--danger);
+}
+
+.comment-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.comment-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--embed-border);
+  background: rgba(226, 232, 240, 0.7);
+}
+
+.comment-issue-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.comment-issue-line strong {
+  color: var(--heading);
+}
+
+.comment-body {
+  margin: 0;
+  color: var(--capsule-body-color);
+  font-size: var(--capsule-body-font-size);
+  line-height: 1.76;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .item-side {
@@ -1478,6 +1567,10 @@ button.tag-chip {
   .settings-control-grid.two-column {
     grid-template-columns: 1fr;
   }
+
+  .comment-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -1504,10 +1597,15 @@ button.tag-chip {
   .flow-card,
   .article-card,
   .toy-card,
+  .comment-card,
   .side-card,
   .empty-card {
     padding: 16px;
     border-radius: 20px;
+  }
+
+  .comment-status-grid {
+    grid-template-columns: 1fr;
   }
 
   .image-frame-button,

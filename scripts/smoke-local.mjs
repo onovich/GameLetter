@@ -61,7 +61,7 @@ async function waitForServer(child) {
 async function startServer() {
   const child = spawn(process.execPath, ['scripts/prompt-cms-server.mjs'], {
     cwd: rootDir,
-    env: { ...process.env, PROMPT_CMS_PORT: String(port) },
+    env: { ...process.env, PROMPT_CMS_PORT: String(port), GITHUB_DISCUSSIONS_TOKEN: '', GITHUB_TOKEN: '' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
 
@@ -152,6 +152,15 @@ async function runBrowsePathSmoke() {
   assert.match(toyPage.text, /<canvas|interactive|Toy/i);
 }
 
+async function runCommentsSmoke() {
+  const comments = (await request('/api/comments')).json();
+  assert.equal(comments.status.configured, false);
+  assert.equal(comments.status.repo, 'onovich/GameLetter');
+  assert.equal(comments.status.category, 'Announcements');
+  assert.ok(Array.isArray(comments.comments));
+  assert.ok(comments.warnings.some((warning) => warning.includes('GITHUB_DISCUSSIONS_TOKEN')));
+}
+
 async function runPublishFlowSmoke() {
   const stamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
   const fileName = `flow-smoke-${stamp}.md`;
@@ -226,6 +235,9 @@ async function main() {
   try {
     log('checking browse and static paths');
     await runBrowsePathSmoke();
+
+    log('checking comments management fallback');
+    await runCommentsSmoke();
 
     log('checking publish preview/apply/undo');
     await runPublishFlowSmoke();

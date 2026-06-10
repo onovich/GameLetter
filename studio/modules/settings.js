@@ -7,7 +7,8 @@ export const editorModes = [
   { key: 'capsule', label: 'Capsule' },
   { key: 'flow', label: 'Flow' },
   { key: 'article', label: 'Article' },
-  { key: 'toy', label: 'Toy' }
+  { key: 'toy', label: 'Toy' },
+  { key: 'comments', label: 'Comments' }
 ];
 
 export const defaultSettings = {
