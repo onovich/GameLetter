@@ -1,11 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { MessageCircle } from 'lucide-react';
 
+const defaultGiscusConfig = {
+  repo: 'onovich/GameLetter',
+  repoId: 'R_kgDOSJIoWQ',
+  category: 'Announcements',
+  categoryId: 'DIC_kwDOSJIoWc4C-4Gu'
+};
+
 const giscusConfig = {
-  repo: import.meta.env.VITE_GISCUS_REPO,
-  repoId: import.meta.env.VITE_GISCUS_REPO_ID,
-  category: import.meta.env.VITE_GISCUS_CATEGORY,
-  categoryId: import.meta.env.VITE_GISCUS_CATEGORY_ID
+  repo: import.meta.env.VITE_GISCUS_REPO || defaultGiscusConfig.repo,
+  repoId: import.meta.env.VITE_GISCUS_REPO_ID || defaultGiscusConfig.repoId,
+  category: import.meta.env.VITE_GISCUS_CATEGORY || defaultGiscusConfig.category,
+  categoryId: import.meta.env.VITE_GISCUS_CATEGORY_ID || defaultGiscusConfig.categoryId
 };
 
 function hasGiscusConfig() {
