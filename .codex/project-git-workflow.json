@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "initializedMarker": "codex-project-git-workflow: initialized",
+  "initializedAt": "2026-06-13 00:00:00 +08:00",
+  "projectName": "GameLetter",
+  "repoRoot": "D:\\WebProjects\\GameLetter",
+  "safeDirectory": "D:/WebProjects/GameLetter",
+  "statusCommand": "git -c safe.directory=D:/WebProjects/GameLetter status --short --branch",
+  "validationCommands": [
+    "cmd /c npm.cmd run smoke:local"
+  ],
+  "stagingPolicy": "selected files only",
+  "commitCommand": "",
+  "pushCommand": "git -c safe.directory=D:/WebProjects/GameLetter push -u origin HEAD",
+  "docsRequirement": "Follow docs/refactor-plan.md for round scope and required checks before committing.",
+  "forbiddenCommands": "No force push. No destructive reset or checkout unless explicitly requested. Preserve unrelated user changes."
+}

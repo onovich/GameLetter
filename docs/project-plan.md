@@ -21,6 +21,8 @@
 
 详细路线图见 `docs/platform-roadmap.md`。
 
+当前架构重构按 `docs/refactor-plan.md` 执行，计划拆成 6 轮实施会话完成。本轮架构设计与计划制定不计入 6 轮实施。
+
 ## 阶段规划
 
 ### P0：工程化重构
