@@ -23,7 +23,9 @@ import {
 } from './modules/content-utils.js';
 import { requestJson } from './modules/api-client.js';
 import { createCommentsModule } from './modules/comments.js';
+import { createNavigation } from './modules/navigation.js';
 import { createToast } from './modules/render-utils.js';
+import { createInitialState, toggleTagSelection } from './modules/state.js';
 import {
   capsuleNeedsCollapse as sharedCapsuleNeedsCollapse,
   getCapsuleBlocks as getSharedCapsuleBlocks,
@@ -59,98 +61,14 @@ const elements = {
 
 const showToast = createToast(elements.toast);
 
-const state = {
-  mode: 'issue',
-  dataSource: { capsules: [], issues: [], flows: [], articles: [], columns: [], toys: [], features: {} },
-  inboxFiles: [],
-  draggingBlockId: null,
-  draggingContext: null,
-  draggingOwner: null,
-  suggestion: {
-    visible: false,
-    type: null,
-    target: null,
-    query: '',
-    start: 0,
-    end: 0,
-    options: [],
-    top: 0,
-    left: 0,
-    width: 260
-  },
-  lightbox: {
-    open: false,
-    url: '',
-    caption: ''
-  },
-  commandDialog: {
-    open: false,
-    title: '',
-    fields: [],
-    variant: '',
-    query: '',
-    selectedToyId: '',
-    preview: null,
-    resolve: null
-  },
-  settings: loadStoredSettings(),
-  ui: {
-    settingsOpen: false,
-    capsule: {
-      composerBlocks: [],
-      page: 1,
-      search: '',
-      activeTags: [],
-      expanded: {},
-      editing: {},
-      editBlocks: {},
-      focusTarget: '',
-      selectedImageTarget: ''
-    },
-    issue: {
-      page: 1,
-      search: '',
-      activeTags: [],
-      expandedPreview: {},
-      editor: null,
-      editing: {},
-      editTitles: {},
-      editBlocks: {},
-      focusTarget: ''
-    },
-    flow: {
-      page: 1,
-      search: '',
-      activeTags: [],
-      editing: {}
-    },
-    article: {
-      page: 1,
-      search: '',
-      activeTags: [],
-      editing: {}
-    },
-    toy: {
-      page: 1,
-      search: '',
-      activeTags: [],
-      editing: {}
-    },
-    comments: {
-      page: 1,
-      search: '',
-      issueFilter: 'all',
-      loading: false,
-      loaded: false,
-      lastLoadedAt: '',
-      status: null,
-      error: '',
-      warnings: [],
-      comments: [],
-      discussions: []
-    }
-  }
-};
+const state = createInitialState(loadStoredSettings());
+
+const navigation = createNavigation({
+  elements,
+  editorModes,
+  getMode: () => state.mode
+});
+const { renderModeNavigation, renderTagSidebar } = navigation;
 
 const commentsModule = createCommentsModule({
   state,
@@ -774,40 +692,6 @@ function resolveItemCreatedAt(...values) {
   return values.find((value) => value) || new Date().toISOString();
 }
 
-function renderModeNavigation() {
-  if (!elements.modeNav.querySelector('.mode-tabs')) {
-    elements.modeNav.innerHTML = `
-      <nav class="mode-tabs" aria-label="编辑模式切换">
-        <span class="mode-tab-indicator" aria-hidden="true"></span>
-        ${editorModes.map((mode) => `<button class="mode-tab" type="button" data-mode-tab="${mode.key}">${mode.label}</button>`).join('')}
-      </nav>
-    `;
-  }
-
-  const modeTabs = elements.modeNav.querySelector('.mode-tabs');
-  if (!modeTabs) {
-    return;
-  }
-  editorModes.forEach((mode) => {
-    modeTabs.classList.toggle(`${mode.key}-active`, state.mode === mode.key);
-  });
-  const activeModeIndex = Math.max(0, editorModes.findIndex((mode) => mode.key === state.mode));
-  modeTabs.style.setProperty('--active-offset', `${activeModeIndex * 60}px`);
-  const activeModeColorVar = {
-    capsule: ['--capsule-tab-color', '#74a7f7'],
-    issue: ['--issue-tab-color', '#86cbbf'],
-    flow: ['--flow-tab-color', '#f59e0b'],
-    article: ['--article-tab-color', '#8b5cf6'],
-    toy: ['--toy-tab-color', '#14b8a6'],
-    comments: ['--comments-tab-color', '#64748b']
-  }[state.mode] || ['--issue-tab-color', '#86cbbf'];
-  modeTabs.style.setProperty('--active-color', `var(${activeModeColorVar[0]}, ${activeModeColorVar[1]})`);
-  modeTabs.dataset.mode = state.mode;
-  modeTabs.querySelectorAll('[data-mode-tab]').forEach((tab) => {
-    tab.classList.toggle('active', tab.dataset.modeTab === state.mode);
-  });
-}
-
 function getCapsuleMap() {
   return new Map((state.dataSource.capsules || []).map((item) => [item.id, item]));
 }
@@ -1323,33 +1207,6 @@ function getModeTagCounts(kind) {
     (item.tags || []).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1));
   });
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-}
-
-function sortTagCountsWithSelection(tagCounts, selectedTags = []) {
-  const selectedSet = new Set(selectedTags.map((tag) => tag.toLowerCase()));
-  return [...tagCounts].sort((left, right) => {
-    const leftSelected = selectedSet.has(left[0].toLowerCase());
-    const rightSelected = selectedSet.has(right[0].toLowerCase());
-    if (leftSelected !== rightSelected) {
-      return leftSelected ? -1 : 1;
-    }
-    return right[1] - left[1];
-  });
-}
-
-function renderTagSidebar({ selectedTags = [], tagCounts = [], filterAction, clearAction, searchInputId, searchPlaceholder, searchValue }) {
-  const orderedTagCounts = sortTagCountsWithSelection(tagCounts, selectedTags);
-  return `
-    <section class="card side-card">
-      <input id="${searchInputId}" class="search-input" type="text" placeholder="${escapeHtml(searchPlaceholder)}" value="${escapeHtml(searchValue || '')}" />
-      <div class="filter-head ${selectedTags.length ? '' : 'filter-head-compact'}">
-        ${selectedTags.length ? `<button class="clear-filter-button" data-action="${clearAction}">清除</button>` : ''}
-      </div>
-      <div class="tag-sidebar-list">
-        ${orderedTagCounts.length ? orderedTagCounts.map(([tag, count]) => `<button class="tag-chip sidebar-tag-chip ${selectedTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="${filterAction}" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)} · ${count}</button>`).join('') : '<p class="hint">还没有标签。</p>'}
-      </div>
-    </section>
-  `;
 }
 
 function getRecentCapsuleCandidates(limit = 5) {
@@ -3355,10 +3212,7 @@ function handleClick(event) {
       break;
     case 'capsule-filter-tag': {
       const tag = actionTarget.dataset.tag || '';
-      const exists = state.ui.capsule.activeTags.some((item) => item.toLowerCase() === tag.toLowerCase());
-      state.ui.capsule.activeTags = exists
-        ? state.ui.capsule.activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())
-        : [tag, ...state.ui.capsule.activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())];
+      state.ui.capsule.activeTags = toggleTagSelection(state.ui.capsule.activeTags, tag);
       state.ui.capsule.page = 1;
       renderCapsuleWorkspace();
       break;
@@ -3390,10 +3244,7 @@ function handleClick(event) {
       break;
     case 'issue-filter-tag': {
       const tag = actionTarget.dataset.tag || '';
-      const exists = state.ui.issue.activeTags.some((item) => item.toLowerCase() === tag.toLowerCase());
-      state.ui.issue.activeTags = exists
-        ? state.ui.issue.activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())
-        : [tag, ...state.ui.issue.activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())];
+      state.ui.issue.activeTags = toggleTagSelection(state.ui.issue.activeTags, tag);
       state.ui.issue.page = 1;
       renderIssueWorkspace();
       break;
@@ -3464,10 +3315,7 @@ function handleClick(event) {
         break;
       }
       const tag = actionTarget.dataset.tag || '';
-      const exists = state.ui[kind].activeTags.some((item) => item.toLowerCase() === tag.toLowerCase());
-      state.ui[kind].activeTags = exists
-        ? state.ui[kind].activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())
-        : [tag, ...state.ui[kind].activeTags.filter((item) => item.toLowerCase() !== tag.toLowerCase())];
+      state.ui[kind].activeTags = toggleTagSelection(state.ui[kind].activeTags, tag);
       state.ui[kind].page = 1;
       renderPlainModeWorkspace(kind);
       break;
