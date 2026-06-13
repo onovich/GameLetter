@@ -1,15 +1,10 @@
+import { editorModes as sharedEditorModes } from '../../shared/content-rules.js';
+
 export const PAGE_SIZE = 20;
 export const SETTINGS_STORAGE_KEY = 'prompt-cms-style-settings';
 export const SETTINGS_DEFAULT_STORAGE_KEY = 'prompt-cms-style-default-settings';
 
-export const editorModes = [
-  { key: 'issue', label: 'Issue' },
-  { key: 'capsule', label: 'Capsule' },
-  { key: 'flow', label: 'Flow' },
-  { key: 'article', label: 'Article' },
-  { key: 'toy', label: 'Toy' },
-  { key: 'comments', label: 'Comments' }
-];
+export const editorModes = sharedEditorModes;
 
 export const defaultSettings = {
   shellPadding: 28,

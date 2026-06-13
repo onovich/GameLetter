@@ -1,12 +1,7 @@
-export const modeOrder = ['issue', 'capsule', 'flow', 'article', 'toy'];
+import { contentModeMeta, contentModeOrder } from '../../shared/content-rules.js';
 
-export const modeMeta = {
-  issue: { label: 'Issue', route: 'issues', className: 'issue-list', colorVar: '--issue-tab-color', colorFallback: '#86cbbf' },
-  capsule: { label: 'Capsule', route: 'capsules', className: 'capsule-list', colorVar: '--capsule-tab-color', colorFallback: '#74a7f7' },
-  flow: { label: 'Flow', route: 'flows', className: 'flow-list', colorVar: '--flow-tab-color', colorFallback: '#f59e0b' },
-  article: { label: 'Article', route: 'articles', className: 'article-list', colorVar: '--article-tab-color', colorFallback: '#8b5cf6' },
-  toy: { label: 'Toy', route: 'toys', className: 'toy-list', colorVar: '--toy-tab-color', colorFallback: '#14b8a6' }
-};
+export const modeOrder = contentModeOrder;
+export const modeMeta = contentModeMeta;
 
 export function normalizeMode(kind) {
   return modeMeta[kind] ? kind : 'issue';

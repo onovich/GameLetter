@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { defaultVisibility } from '../../shared/content-rules.js';
 
 const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
@@ -20,18 +21,12 @@ function toDateLabel(value) {
 }
 
 function normalizeEntry(entry, kind) {
-  const isPublishedSurface = kind === 'issue' || kind === 'article';
-
   return {
     ...entry,
     kind,
     dateLabel: entry.date || toDateLabel(entry.publishedAt),
     visibility: {
-      direct: true,
-      search: true,
-      homepage: isPublishedSurface,
-      feed: isPublishedSurface,
-      rss: isPublishedSurface,
+      ...defaultVisibility(kind),
       ...(entry.visibility || {})
     }
   };

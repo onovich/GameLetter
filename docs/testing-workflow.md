@@ -111,6 +111,17 @@ npm run build
 - 页面切换到不同 Issue / Capsule / Flow / Article 后，`document.title`、`meta[name="description"]`、`og:title`、`og:description` 和 canonical 会同步更新
 - `npm run validate:data` 能拦截错误的 SEO 字段、缺失的 Toy 入口、未知的 visibility 字段和无效 block
 
+### 6. 六轮重构后的固定回归
+
+每次改到内容模型、CMS 模块、浏览路由、Toy 或评论管理时，至少确认：
+
+- 左栏 `Issue / Capsule / Flow / Article / Toy / Comments` 选中态正确，滑块和文字都可见。
+- Capsule tab 展示全部 Capsule；从 Issue 内嵌 Capsule 点击时进入 Capsule 详情，而不是 Capsule 列表。
+- 右栏 tag 多选是且关系，选得越多结果不会反向变多。
+- Toy 列表和 Article 内默认只播放第一个 Toy；其他 Toy 显示 poster 蒙层，点击播放后会停止同页其他 Toy。
+- Comments tab 在未配置 GitHub token 时有可读 fallback；配置后可列出评论并执行删除。
+- `shared/content-rules.js` 中的 mode 顺序、collection 映射和默认 visibility 与 CMS、浏览端、校验脚本一致。
+
 ## 推荐执行顺序
 
 1. 先修功能逻辑

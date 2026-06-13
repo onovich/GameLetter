@@ -39,8 +39,9 @@ GameLetter/
 │  └─ view/                 # 动画常量
 ├─ studio/                  # 本地 Prompt CMS 前端
 │  ├─ modules/              # CMS 局部工具与配置
-│  ├─ app.js                # 当前 CMS 主入口，后续重点拆分对象
-│  └─ app.css               # CMS 样式
+│  ├─ styles/               # CMS 局部样式
+│  ├─ app.js                # CMS bootstrap 与模块装配
+│  └─ app.css               # CMS 基础样式入口
 ├─ scripts/                 # 本地服务、构建、校验、RSS、smoke
 ├─ shared/                  # CMS、浏览端、脚本可共用的纯内容逻辑
 ├─ schemas/                 # JSON Schema 内容契约
@@ -140,6 +141,7 @@ flowchart LR
 位置：
 
 - `shared/content-blocks.js`
+- `shared/content-rules.js`
 
 职责：
 
@@ -147,12 +149,13 @@ flowchart LR
 - 标准化 block。
 - 生成 Capsule 缩略预览。
 - 序列化 CMS 操作单中的 block。
+- 统一实体 mode、collection 映射、默认 visibility 与编辑器 tab 顺序。
 
 规则：
 
 - 这里必须保持纯函数，不依赖 DOM、React、文件系统或网络。
 - 浏览端和 CMS 能共用的内容规则优先放这里。
-- `studio/app.js` 和 `scripts/prompt-cms-server.mjs` 中重复的 block 逻辑，应逐步回收进 shared。
+- 新增实体、修改默认分发或调整 mode 顺序时，优先改 `shared/content-rules.js`，再让浏览端、CMS 和脚本引用它。
 
 ### 3. 浏览应用层
 
@@ -184,6 +187,7 @@ flowchart LR
 - `studio/app.js`
 - `studio/app.css`
 - `studio/modules/`
+- `studio/styles/`
 
 职责：
 
@@ -204,6 +208,10 @@ flowchart LR
 位置：
 
 - `scripts/prompt-cms-server.mjs`
+- `scripts/cms/server.mjs`
+- `scripts/cms/routes/`
+- `scripts/cms/services/`
+- `scripts/cms/utils/`
 
 职责：
 
@@ -325,9 +333,12 @@ sequenceDiagram
 - `schemas/content.schema.json`
 - `docs/content-model.md`
 - `shared/content-blocks.js`
+- `shared/content-rules.js`
 - `scripts/validate-data.mjs`
 - `scripts/prompt-cms-server.mjs`
+- `scripts/cms/*`
 - `studio/app.js`
+- `studio/modules/*`
 - `src/content/*`
 - `src/components/*`
 - `scripts/smoke-local.mjs`
@@ -351,11 +362,11 @@ sequenceDiagram
 
 ## 当前技术债
 
-### P0：CMS 主文件过大
+### 已完成：CMS 主文件拆分
 
-`studio/app.js` 已承担状态、渲染、事件、发布、评论、编辑器、Toy 预览等多种职责。继续加功能前，应优先拆分。
+`studio/app.js` 已从“所有逻辑集中点”调整为 bootstrap、全局事件绑定和模块装配入口。Comments、导航、状态、Capsule、Issue、Flow / Article、Toy 已拆入 `studio/modules/`。
 
-建议目标：
+当前形态：
 
 ```text
 studio/
@@ -372,11 +383,11 @@ studio/
 │  └─ toy-workspace.js
 ```
 
-第一步建议先抽 `comments.js`，因为它相对独立、回归面小。
+剩余注意点：新增编辑器能力时，应优先进入对应 workspace 模块；只有跨模块编排才放回 `app.js`。
 
-### P0：CMS 服务脚本过大
+### 已完成：CMS 服务脚本拆分
 
-`scripts/prompt-cms-server.mjs` 同时负责静态服务、draft 解析、发布、GitHub GraphQL、评论删除和文件归档。后续应拆成：
+`scripts/prompt-cms-server.mjs` 已变成兼容入口，实际服务拆到 `scripts/cms/`：
 
 ```text
 scripts/cms/
@@ -395,24 +406,25 @@ scripts/cms/
    └─ paths.mjs
 ```
 
-### P1：内容解析逻辑仍有重复
+剩余注意点：新增 API route 时，应优先放到 `scripts/cms/routes/`，文件系统与 GitHub 逻辑放到 `services/` 或 `utils/`。
 
-部分 block 解析、标题推断、tag 提取逻辑分散在 `shared/`、`studio/modules/` 和 `scripts/`。目标是：
+### P1：内容解析逻辑仍需继续收敛
+
+大部分 mode、collection、visibility 规则已进入 `shared/content-rules.js`；block 解析、标题推断、tag 提取仍可能分散在 `shared/`、`studio/modules/` 和 `scripts/`。目标是：
 
 - 内容 block 规则收敛到 `shared/content-blocks.js`。
+- 内容实体和分发规则收敛到 `shared/content-rules.js`。
 - CMS 只处理编辑状态和 UI。
 - 服务端只处理文件、发布和 GitHub API。
 
-### P1：样式还没有模块化
+### P1：样式仍可继续模块化
 
-`studio/app.css` 可以后续拆成：
+`studio/app.css` 已拆出 `studio/styles/navigation.css` 和 `studio/styles/comments.css`。后续如果继续变大，可再拆：
 
 - `base.css`
 - `layout.css`
-- `navigation.css`
 - `cards.css`
 - `editor.css`
-- `comments.css`
 - `settings.css`
 
 浏览端 `src/browse.css` 目前规模尚可，暂时不急。
@@ -430,7 +442,7 @@ scripts/cms/
 ```text
 shared/
 ├─ content-blocks.js        # block 解析、标准化、序列化、预览
-└─ content-rules.js         # 后续可选：实体关系、visibility、默认值
+└─ content-rules.js         # 实体关系、visibility、默认值
 
 src/
 ├─ content/                 # 浏览端纯逻辑：route/search/seo/assets/markdown

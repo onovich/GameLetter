@@ -16,6 +16,7 @@
 - `Issue`：由多个 Capsule 与若干 note 编排而成的正式发布单元
 - `Flow`：纯文本碎碎念，默认不进首页 / RSS
 - `Article`：长文专栏文章，可归属 Column，可进入首页 / RSS
+- `Toy`：独立可交互 HTML，可被 Article 引用，默认不进首页 / RSS
 
 ## 推荐操作流程
 
@@ -31,9 +32,9 @@
 
 这份 `.md` 文件既可以是：
 
-- 新增 Capsule / Issue / Flow / Article
-- 编辑已存在 Capsule / Issue / Flow / Article
-- 删除已存在 Capsule / Issue / Flow / Article
+- 新增 Capsule / Issue / Flow / Article / Toy
+- 编辑已存在 Capsule / Issue / Flow / Article / Toy
+- 删除已存在 Capsule / Issue / Flow / Article / Toy
 
 ### 阶段 B：触发短命令
 
@@ -45,14 +46,14 @@
 
 - 读取 inbox 中最新或选中的操作单
 - 识别 action：create / update / delete
-- 识别 kind：Capsule / Issue / Flow / Article
+- 识别 kind：Capsule / Issue / Flow / Article / Toy
 - 生成内置 prompt 并交给 Copilot
 
 ### 阶段 C：AI 结构化
 
 Copilot 负责：
 
-- 判断这次稿件更适合成为 `Capsule`、`Issue`、`Flow` 还是 `Article`
+- 判断这次稿件更适合成为 `Capsule`、`Issue`、`Flow`、`Article` 还是 `Toy`
 - 判断这次操作是新增、编辑还是删除
 - 提取标题
 - 生成摘要
@@ -249,3 +250,14 @@ Copilot 执行：
 - 不推荐：自己写 GitHub API 工具做评论同步/回复
 
 如果未来确实需要在 VS Code 里集中处理评论，建议做一个单独的评论助手脚本，直接调用 GitHub API，而不是走 Git 工作流。
+
+### CMS 评论管理入口
+
+当前评论集中管理入口在本地 CMS 的 `Comments` tab。它通过本地服务调用 GitHub GraphQL：
+
+- 浏览端只嵌入 Giscus，不保存 GitHub token。
+- 本地 CMS 服务读取 `.env.local` 中的 GitHub token。
+- `GET /api/comments` 用于拉取 Discussions 评论列表。
+- `DELETE /api/comments/:id` 用于删除指定评论。
+
+如果 Comments tab 提示尚未配置 token，应先确认 `.env.local` 中的 GitHub token 权限，再重启 `npm run cms`。

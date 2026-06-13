@@ -1,0 +1,80 @@
+.mode-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 6px;
+  --mode-tab-height: 52px;
+  --active-offset: 0px;
+  --active-color: var(--issue-tab-color);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.mode-tab-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(100% - 12px);
+  height: var(--mode-tab-height);
+  border-radius: 16px;
+  background-color: var(--active-color);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--active-color) 28%, transparent);
+  transform: translate3d(0, var(--active-offset), 0);
+  will-change: transform, background-color, box-shadow;
+  transition: transform var(--theme-transition-duration) ease, background-color var(--theme-transition-duration) ease, box-shadow var(--theme-transition-duration) ease;
+}
+
+.mode-tabs.capsule-active {
+  --active-color: var(--capsule-tab-color);
+}
+
+.mode-tabs.flow-active {
+  --active-color: var(--flow-tab-color);
+}
+
+.mode-tabs.article-active {
+  --active-color: var(--article-tab-color);
+}
+
+.mode-tabs.toy-active {
+  --active-color: var(--toy-tab-color);
+}
+
+.mode-tabs.comments-active {
+  --active-color: var(--comments-tab-color);
+}
+
+.mode-tabs.issue-active {
+  --active-color: var(--issue-tab-color);
+}
+
+.mode-tab {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: var(--mode-tab-height);
+  padding: 0 22px;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--tab-font-size);
+  font-weight: 700;
+  box-shadow: none;
+  text-align: center;
+  transition: color var(--theme-transition-duration) ease, transform var(--theme-transition-duration) ease;
+}
+
+.mode-tab.active {
+  color: white;
+}
+
+@media (max-width: 720px) {
+  .mode-tab {
+    min-width: 0;
+  }
+}

@@ -17,6 +17,7 @@ import {
 } from './services/draft-parser.mjs';
 import { sendJson } from './utils/http.mjs';
 import { createCmsPaths, loadLocalEnvFiles } from './utils/paths.mjs';
+import { collectionByKind, defaultVisibility } from '../../shared/content-rules.js';
 
 const {
   rootDir,
@@ -33,22 +34,6 @@ const contentStore = createContentStore({ rootDir, dataPath });
 const { readDataSource, writeDataSource, regenerateRss } = contentStore;
 
 loadLocalEnvFiles(rootDir);
-
-const collectionByKind = {
-  capsule: 'capsules',
-  issue: 'issues',
-  flow: 'flows',
-  article: 'articles',
-  toy: 'toys'
-};
-
-const defaultVisibilityByKind = {
-  capsule: { direct: true, search: true, homepage: false, feed: false, rss: false },
-  toy: { direct: true, search: true, homepage: false, feed: false, rss: false },
-  flow: { direct: true, search: true, homepage: false, feed: false, rss: false },
-  issue: { direct: true, search: true, homepage: true, feed: true, rss: true },
-  article: { direct: true, search: true, homepage: true, feed: true, rss: true }
-};
 
 function sanitizeFileName(fileName) {
   const baseName = path.basename(fileName || '').trim();
@@ -235,10 +220,6 @@ function buildUniqueId(kind, title, publishedAt, collection = []) {
     suffix += 1;
   }
   return candidate;
-}
-
-function defaultVisibility(kind) {
-  return { ...(defaultVisibilityByKind[kind] || defaultVisibilityByKind.capsule) };
 }
 
 function splitContentChunks(body = '') {

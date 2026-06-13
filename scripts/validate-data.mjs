@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { contentCollections, visibilityKeys } from '../shared/content-rules.js';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(rootDir, 'public');
@@ -17,8 +18,8 @@ const singularKindByCollection = {
   columns: 'column',
   toys: 'toy'
 };
-const knownVisibilityKeys = new Set(['direct', 'search', 'homepage', 'feed', 'rss']);
-const knownCollectionKeys = new Set(['issues', 'articles', 'capsules', 'flows', 'toys']);
+const knownVisibilityKeys = new Set(visibilityKeys);
+const knownCollectionKeys = new Set(contentCollections);
 
 function addError(message) {
   errors.push(message);

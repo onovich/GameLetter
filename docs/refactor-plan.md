@@ -6,6 +6,8 @@
 
 预计用 6 轮实施会话完成主要重构。本轮为架构与计划会话，不计入 6 轮实施。
 
+实施状态：6 轮已按计划推进完成，后续文档保留为架构回归和新增功能时的边界参考。
+
 每轮会话必须遵守：
 
 - 不改变既有内容模型，除非该轮明确包含模型调整。
@@ -189,7 +191,7 @@ scripts/
 范围：
 
 - 将重复的 block 解析、tag 提取、默认 visibility、实体关系规则继续收敛到 `shared/`。
-- 可选新增 `shared/content-rules.js`。
+- 新增 `shared/content-rules.js`。
 - 轻拆 `studio/app.css`，优先拆 comments、navigation、workspace/card 样式。
 - 更新 `docs/testing-workflow.md`，加入本轮重构后的固定回归清单。
 - 更新 `docs/publishing-workflow.md`，反映 CMS Comments 管理入口。
@@ -205,7 +207,7 @@ scripts/
 - `studio/app.js` 明显瘦身，主要承担装配职责。
 - CMS 服务层有清晰 routes/services/utils。
 - shared 规则成为新增实体和 block 的默认入口。
-- 文档不再描述过时的 Canvas / Capsule Toy payload。
+- 文档不再描述已废弃的旧交互实体或 Capsule Toy payload。
 - `npm run validate:data`
 - `npm run build`
 - `npm run smoke:local`

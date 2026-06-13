@@ -1,3 +1,6 @@
+@import './styles/navigation.css';
+@import './styles/comments.css';
+
 :root {
   color-scheme: light;
   --bg: #ecf6ff;
@@ -164,81 +167,6 @@ textarea:focus, input:focus, select:focus {
 .subtitle, .hint {
   margin: 0;
   color: var(--muted);
-}
-
-.mode-tabs {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  padding: 6px;
-  --mode-tab-height: 52px;
-  --active-offset: 0px;
-  --active-color: var(--issue-tab-color);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(14px);
-  overflow: hidden;
-}
-
-.mode-tab-indicator {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: calc(100% - 12px);
-  height: var(--mode-tab-height);
-  border-radius: 16px;
-  background-color: var(--active-color);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--active-color) 28%, transparent);
-  transform: translate3d(0, var(--active-offset), 0);
-  will-change: transform, background-color, box-shadow;
-  transition: transform var(--theme-transition-duration) ease, background-color var(--theme-transition-duration) ease, box-shadow var(--theme-transition-duration) ease;
-}
-
-.mode-tabs.capsule-active {
-  --active-color: var(--capsule-tab-color);
-}
-
-.mode-tabs.flow-active {
-  --active-color: var(--flow-tab-color);
-}
-
-.mode-tabs.article-active {
-  --active-color: var(--article-tab-color);
-}
-
-.mode-tabs.toy-active {
-  --active-color: var(--toy-tab-color);
-}
-
-.mode-tabs.comments-active {
-  --active-color: var(--comments-tab-color);
-}
-
-.mode-tabs.issue-active {
-  --active-color: var(--issue-tab-color);
-}
-
-.mode-tab {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  min-height: var(--mode-tab-height);
-  padding: 0 22px;
-  border-radius: 14px;
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--tab-font-size);
-  font-weight: 700;
-  box-shadow: none;
-  text-align: center;
-  transition: color var(--theme-transition-duration) ease, transform var(--theme-transition-duration) ease;
-}
-
-.mode-tab.active {
-  color: white;
 }
 
 .workspace {
@@ -916,80 +844,6 @@ button.tag-chip {
   gap: 2px;
 }
 
-.comment-status-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.comment-status-grid > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid var(--embed-border);
-  background: rgba(248, 250, 252, 0.72);
-}
-
-.comment-status-grid strong {
-  color: var(--heading);
-  overflow-wrap: anywhere;
-}
-
-.comment-notice {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(245, 158, 11, 0.24);
-  background: rgba(255, 251, 235, 0.84);
-  color: #92400e;
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-.comment-notice.error {
-  border-color: rgba(220, 38, 38, 0.22);
-  background: rgba(254, 242, 242, 0.84);
-  color: var(--danger);
-}
-
-.comment-author-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.comment-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  border: 1px solid var(--embed-border);
-  background: rgba(226, 232, 240, 0.7);
-}
-
-.comment-issue-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.comment-issue-line strong {
-  color: var(--heading);
-}
-
-.comment-body {
-  margin: 0;
-  color: var(--capsule-body-color);
-  font-size: var(--capsule-body-font-size);
-  line-height: 1.76;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .item-side {
   display: grid;
   justify-items: end;
@@ -1568,9 +1422,6 @@ button.tag-chip {
     grid-template-columns: 1fr;
   }
 
-  .comment-status-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -1587,10 +1438,6 @@ button.tag-chip {
     font-size: 28px;
   }
 
-  .mode-tab {
-    min-width: 0;
-  }
-
   .card,
   .capsule-card,
   .issue-list-item,
@@ -1602,10 +1449,6 @@ button.tag-chip {
   .empty-card {
     padding: 16px;
     border-radius: 20px;
-  }
-
-  .comment-status-grid {
-    grid-template-columns: 1fr;
   }
 
   .image-frame-button,
