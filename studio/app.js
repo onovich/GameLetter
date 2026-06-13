@@ -22,7 +22,9 @@ import {
   slugifyLabel
 } from './modules/content-utils.js';
 import { requestJson } from './modules/api-client.js';
+import { createCapsuleWorkspace } from './modules/capsule-workspace.js';
 import { createCommentsModule } from './modules/comments.js';
+import { createIssueWorkspace } from './modules/issue-workspace.js';
 import { createNavigation } from './modules/navigation.js';
 import { createToast } from './modules/render-utils.js';
 import { createInitialState, toggleTagSelection } from './modules/state.js';
@@ -76,6 +78,73 @@ const commentsModule = createCommentsModule({
   renderModeNavigation,
   requestJson,
   showToast
+});
+
+const capsuleWorkspace = createCapsuleWorkspace({
+  state,
+  elements,
+  renderModeNavigation,
+  renderTagSidebar,
+  renderPagination,
+  renderStatusPill,
+  renderDraftPublishTools,
+  renderImagePreviewMarkup,
+  renderLinkPreviewMarkup,
+  collectImageBlockInput,
+  collectLinkBlockInput,
+  saveTask,
+  deleteDraft,
+  buildItems: buildCapsuleItems,
+  getTagCounts,
+  getInboxFileByName,
+  parseBodyToBlocks: parseCapsuleBodyToBlocks,
+  serializeBlocks: serializeCapsuleBlocks,
+  cloneBlocks,
+  extractTagsFromBlocks: extractCapsuleTagsFromBlocks,
+  createTextBlock,
+  createImageBlock,
+  createLinkBlock,
+  canInsertBetweenBlocks,
+  capsuleNeedsCollapse,
+  getPreviewTextFromBlocks: getSharedCapsulePreviewText,
+  getSuggestion: () => state.suggestion,
+  hideSuggestion,
+  showToast,
+  paginate,
+  autoResizeTextarea
+});
+
+const issueWorkspace = createIssueWorkspace({
+  state,
+  elements,
+  renderModeNavigation,
+  renderTagSidebar,
+  renderPagination,
+  renderStatusPill,
+  renderDraftPublishTools,
+  renderImagePreviewMarkup,
+  renderLinkPreviewMarkup,
+  collectLinkBlockInput,
+  saveTask,
+  deleteDraft,
+  buildItems: buildIssueItems,
+  getTagCounts: getIssueTagCounts,
+  getInboxFileByName,
+  parseBodyToBlocks: parseIssueBodyToBlocks,
+  serializeBlocks: serializeIssueBlocks,
+  cloneBlocks,
+  extractTagsFromBlocks: extractIssueTagsFromBlocks,
+  createEmptyEditor: createEmptyIssueEditor,
+  createTextBlock,
+  createLinkBlock,
+  canInsertBetweenBlocks,
+  capsuleNeedsCollapse,
+  inferTitleFromBlocks,
+  getSuggestion: () => state.suggestion,
+  hideSuggestion,
+  showToast,
+  paginate,
+  autoResizeTextarea
 });
 
 let uniqueIdSeed = 0;
@@ -1544,112 +1613,15 @@ async function collectLinkBlockInput(initialValue = {}) {
 }
 
 async function insertCapsuleImageFromCommand(owner, blockId) {
-  const suggestionSnapshot = { ...state.suggestion };
-  const image = await collectImageBlockInput();
-  if (!image?.url) {
-    hideSuggestion();
-    return;
-  }
-  const blocks = [...getCapsuleEditorBlocks(owner)];
-  const blockIndex = blocks.findIndex((block) => block.id === blockId);
-  if (blockIndex === -1) {
-    hideSuggestion();
-    return;
-  }
-
-  const textBlock = blocks[blockIndex];
-  const cleanedText = `${textBlock.text.slice(0, suggestionSnapshot.start)}${textBlock.text.slice(suggestionSnapshot.end)}`.trim();
-  const nextBlocks = [];
-  blocks.forEach((block, index) => {
-    if (index !== blockIndex) {
-      nextBlocks.push(block);
-      return;
-    }
-
-    if (cleanedText) {
-      nextBlocks.push({ ...block, text: cleanedText });
-    }
-    nextBlocks.push(createImageBlock(image.url, image.caption));
-    const trailingTextBlock = createTextBlock('');
-    nextBlocks.push(trailingTextBlock);
-    state.ui.capsule.focusTarget = `${owner}:${trailingTextBlock.id}`;
-  });
-
-  setCapsuleEditorBlocks(owner, nextBlocks);
-  renderCapsuleWorkspace();
-  hideSuggestion();
+  return capsuleWorkspace.insertImageFromCommand(owner, blockId);
 }
 
 async function insertCapsuleLinkFromCommand(owner, blockId) {
-  const suggestionSnapshot = { ...state.suggestion };
-  const link = await collectLinkBlockInput();
-  if (!link) {
-    hideSuggestion();
-    return;
-  }
-  const blocks = [...getCapsuleEditorBlocks(owner)];
-  const blockIndex = blocks.findIndex((block) => block.id === blockId);
-  if (blockIndex === -1) {
-    hideSuggestion();
-    return;
-  }
-
-  const textBlock = blocks[blockIndex];
-  const cleanedText = `${textBlock.text.slice(0, suggestionSnapshot.start)}${textBlock.text.slice(suggestionSnapshot.end)}`.trim();
-  const nextBlocks = [];
-  blocks.forEach((block, index) => {
-    if (index !== blockIndex) {
-      nextBlocks.push(block);
-      return;
-    }
-    if (cleanedText) {
-      nextBlocks.push({ ...block, text: cleanedText });
-    }
-    nextBlocks.push(createLinkBlock(link.text || link.url, link.url));
-    const trailingTextBlock = createTextBlock('');
-    nextBlocks.push(trailingTextBlock);
-    state.ui.capsule.focusTarget = `${owner}:${trailingTextBlock.id}`;
-  });
-
-  setCapsuleEditorBlocks(owner, nextBlocks);
-  renderCapsuleWorkspace();
-  hideSuggestion();
+  return capsuleWorkspace.insertLinkFromCommand(owner, blockId);
 }
 
 async function insertIssueLinkFromCommand(owner, blockId) {
-  const suggestionSnapshot = { ...state.suggestion };
-  const link = await collectLinkBlockInput();
-  if (!link) {
-    hideSuggestion();
-    return;
-  }
-  const blocks = [...getIssueEditorBlocks(owner)];
-  const blockIndex = blocks.findIndex((block) => block.id === blockId);
-  if (blockIndex === -1) {
-    hideSuggestion();
-    return;
-  }
-
-  const textBlock = blocks[blockIndex];
-  const cleanedText = `${textBlock.text.slice(0, suggestionSnapshot.start)}${textBlock.text.slice(suggestionSnapshot.end)}`.trim();
-  const nextBlocks = [];
-  blocks.forEach((block, index) => {
-    if (index !== blockIndex) {
-      nextBlocks.push(block);
-      return;
-    }
-    if (cleanedText) {
-      nextBlocks.push({ ...block, text: cleanedText });
-    }
-    nextBlocks.push(createLinkBlock(link.text || link.url, link.url));
-    const trailingTextBlock = createTextBlock('');
-    nextBlocks.push(trailingTextBlock);
-    state.ui.issue.focusTarget = `${owner}:${trailingTextBlock.id}`;
-  });
-
-  setIssueEditorBlocks(owner, nextBlocks);
-  renderIssueWorkspace();
-  hideSuggestion();
+  return issueWorkspace.insertLinkFromCommand(owner, blockId);
 }
 
 async function applySlashSuggestion(commandId) {
@@ -1681,130 +1653,55 @@ function autoResizeTextarea(textarea, minHeight = 40) {
 }
 
 function getCapsuleEditorBlocks(owner) {
-  if (owner === 'composer') {
-    if (!state.ui.capsule.composerBlocks.length) {
-      state.ui.capsule.composerBlocks = [createTextBlock('')];
-    }
-    return state.ui.capsule.composerBlocks;
-  }
-  if (!state.ui.capsule.editBlocks[owner]?.length) {
-    const item = getCapsuleItemByKey(owner);
-    state.ui.capsule.editBlocks[owner] = cloneBlocks(item?.blocks || [createTextBlock('')]);
-  }
-  return state.ui.capsule.editBlocks[owner];
+  return capsuleWorkspace.getEditorBlocks(owner);
 }
 
 function setCapsuleEditorBlocks(owner, blocks) {
-  const normalized = blocks.length ? blocks : [createTextBlock('')];
-  if (owner === 'composer') {
-    state.ui.capsule.composerBlocks = normalized;
-    return;
-  }
-  state.ui.capsule.editBlocks[owner] = normalized;
+  capsuleWorkspace.setEditorBlocks(owner, blocks);
 }
 
 function findCapsuleBlock(owner, blockId) {
-  return getCapsuleEditorBlocks(owner).find((block) => block.id === blockId);
+  return capsuleWorkspace.findBlock(owner, blockId);
 }
 
 function syncCapsuleTextBlock(owner, blockId, text) {
-  const block = findCapsuleBlock(owner, blockId);
-  if (block) {
-    block.text = text;
-  }
+  capsuleWorkspace.syncTextBlock(owner, blockId, text);
 }
 
 function syncCapsuleImageBlock(owner, blockId, field, value) {
-  const block = findCapsuleBlock(owner, blockId);
-  if (block) {
-    block[field] = value;
-  }
+  capsuleWorkspace.syncImageBlock(owner, blockId, field, value);
 }
 
 function updateCapsuleImage(owner, blockId) {
-  const block = findCapsuleBlock(owner, blockId);
-  if (!block) {
-    return;
-  }
-  collectImageBlockInput({ url: block.url || '', caption: block.caption || '' }).then((image) => {
-    if (!image) {
-      return;
-    }
-    block.url = image.url;
-    block.caption = image.caption;
-    renderCapsuleWorkspace();
-  });
+  capsuleWorkspace.updateImage(owner, blockId);
 }
 
 function updateCapsuleLink(owner, blockId) {
-  const block = findCapsuleBlock(owner, blockId);
-  if (!block) {
-    return;
-  }
-  collectLinkBlockInput({ text: block.text || '', url: block.url || '' }).then((link) => {
-    if (!link) {
-      return;
-    }
-    block.text = link.text || link.url;
-    block.url = link.url;
-    renderCapsuleWorkspace();
-  });
+  capsuleWorkspace.updateLink(owner, blockId);
 }
 
 function setSelectedCapsuleImage(owner, blockId) {
-  const nextValue = `${owner}:${blockId}`;
-  state.ui.capsule.selectedImageTarget = state.ui.capsule.selectedImageTarget === nextValue ? '' : nextValue;
-  renderCapsuleWorkspace();
+  capsuleWorkspace.setSelectedImage(owner, blockId);
 }
 
 function addCapsuleTextBlock(owner) {
-  const block = createTextBlock('');
-  setCapsuleEditorBlocks(owner, [...getCapsuleEditorBlocks(owner), block]);
-  state.ui.capsule.focusTarget = `${owner}:${block.id}`;
-  renderCapsuleWorkspace();
+  capsuleWorkspace.addTextBlock(owner);
 }
 
 function insertCapsuleTextBlock(owner, index) {
-  const blocks = [...getCapsuleEditorBlocks(owner)];
-  if (!canInsertBetweenBlocks(blocks, index)) {
-    showToast('两个空白 block 之间不能继续新增。', 'error');
-    return;
-  }
-  const block = createTextBlock('');
-  blocks.splice(index, 0, block);
-  setCapsuleEditorBlocks(owner, blocks);
-  state.ui.capsule.focusTarget = `${owner}:${block.id}`;
-  renderCapsuleWorkspace();
+  capsuleWorkspace.insertTextBlock(owner, index);
 }
 
 function addCapsuleImageBlock(owner) {
-  const block = createImageBlock('', '');
-  setCapsuleEditorBlocks(owner, [...getCapsuleEditorBlocks(owner), block]);
-  renderCapsuleWorkspace();
+  capsuleWorkspace.addImageBlock(owner);
 }
 
 function removeCapsuleBlock(owner, blockId) {
-  setCapsuleEditorBlocks(owner, getCapsuleEditorBlocks(owner).filter((block) => block.id !== blockId));
-  if (state.ui.capsule.selectedImageTarget === `${owner}:${blockId}`) {
-    state.ui.capsule.selectedImageTarget = '';
-  }
-  renderCapsuleWorkspace();
+  capsuleWorkspace.removeBlock(owner, blockId);
 }
 
 function moveCapsuleBlock(owner, blockId, insertIndex) {
-  const blocks = [...getCapsuleEditorBlocks(owner)];
-  const currentIndex = blocks.findIndex((block) => block.id === blockId);
-  if (currentIndex === -1) {
-    return;
-  }
-  const [movedBlock] = blocks.splice(currentIndex, 1);
-  let safeIndex = Math.max(0, Math.min(insertIndex, blocks.length));
-  if (currentIndex < insertIndex) {
-    safeIndex -= 1;
-  }
-  blocks.splice(Math.max(0, safeIndex), 0, movedBlock);
-  setCapsuleEditorBlocks(owner, blocks);
-  renderCapsuleWorkspace();
+  capsuleWorkspace.moveBlock(owner, blockId, insertIndex);
 }
 
 function renderImagePreviewMarkup(block, options = {}) {
@@ -1925,29 +1822,19 @@ function refreshImagePreview(container, block) {
 }
 
 function renderCapsuleComposerTagPreview() {
-  const container = document.getElementById('capsuleTagPreview');
-  if (!container) {
-    return;
-  }
-  const tags = extractCapsuleTagsFromBlocks(getCapsuleEditorBlocks('composer'));
-  container.innerHTML = tags.map((tag) => `<span class="tag-chip">#${escapeHtml(tag)}</span>`).join('');
+  capsuleWorkspace.renderComposerTagPreview();
 }
 
 function renderIssueComposerTagPreview() {
-  const container = document.getElementById('issueTagPreview');
-  if (!container) {
-    return;
-  }
-  const tags = extractIssueTagsFromBlocks(getIssueEditorBlocks('composer'));
-  container.innerHTML = tags.map((tag) => `<span class="tag-chip">#${escapeHtml(tag)}</span>`).join('');
+  issueWorkspace.renderComposerTagPreview();
 }
 
 function getCapsuleItemByKey(key) {
-  return buildCapsuleItems().find((item) => item.key === key);
+  return capsuleWorkspace.getItemByKey(key);
 }
 
 function getIssueItemByKey(key) {
-  return buildIssueItems().find((item) => item.key === key);
+  return issueWorkspace.getItemByKey(key);
 }
 
 function getInboxFileByName(fileName = '') {
@@ -1955,86 +1842,39 @@ function getInboxFileByName(fileName = '') {
 }
 
 function getCapsuleBlocksForEditing(item) {
-  const draft = item?.fileName ? getInboxFileByName(item.fileName) : null;
-  if (draft?.body) {
-    return parseCapsuleBodyToBlocks(draft.body);
-  }
-  return cloneBlocks(item?.blocks || [createTextBlock('')]);
+  return capsuleWorkspace.getBlocksForEditing(item);
 }
 
 function getIssueBlocksForEditing(item) {
-  const draft = item?.fileName ? getInboxFileByName(item.fileName) : null;
-  if (draft?.body) {
-    return parseIssueBodyToBlocks(draft.body);
-  }
-  return cloneBlocks(item?.blocks || [createTextBlock('')]);
+  return issueWorkspace.getBlocksForEditing(item);
 }
 
 function getIssueEditorBlocks(owner = 'composer') {
-  if (owner === 'composer') {
-    return state.ui.issue.editor?.blocks || [createTextBlock('')];
-  }
-  if (!state.ui.issue.editBlocks[owner]) {
-    const item = getIssueItemByKey(owner);
-    state.ui.issue.editBlocks[owner] = getIssueBlocksForEditing(item);
-  }
-  return state.ui.issue.editBlocks[owner];
+  return issueWorkspace.getEditorBlocks(owner);
 }
 
 function setIssueEditorBlocks(owner = 'composer', blocks = [createTextBlock('')]) {
-  const safeBlocks = blocks.length ? blocks : [createTextBlock('')];
-  if (owner === 'composer') {
-    if (!state.ui.issue.editor) {
-      state.ui.issue.editor = createEmptyIssueEditor();
-    }
-    state.ui.issue.editor.blocks = safeBlocks;
-    return;
-  }
-  state.ui.issue.editBlocks[owner] = safeBlocks;
+  issueWorkspace.setEditorBlocks(owner, blocks);
 }
 
 function cancelCapsuleEditing(key) {
-  delete state.ui.capsule.editing[key];
-  delete state.ui.capsule.editBlocks[key];
-  renderCapsuleWorkspace();
+  capsuleWorkspace.cancelEditing(key);
 }
 
 function cancelIssueEditing(key) {
-  delete state.ui.issue.editing[key];
-  delete state.ui.issue.editBlocks[key];
-  delete state.ui.issue.editTitles[key];
-  renderIssueWorkspace();
+  issueWorkspace.cancelEditing(key);
 }
 
 function resetIssueEditor() {
-  state.ui.issue.editor = createEmptyIssueEditor();
-  renderIssueWorkspace();
+  issueWorkspace.resetEditor();
 }
 
 function deletePreviousIssueBlock(owner, blockId) {
-  const blocks = [...getIssueEditorBlocks(owner)];
-  const index = blocks.findIndex((block) => block.id === blockId);
-  if (index <= 0) {
-    return false;
-  }
-  blocks.splice(index - 1, 1);
-  setIssueEditorBlocks(owner, blocks);
-  state.ui.issue.focusTarget = `${owner}:${blockId}`;
-  renderIssueWorkspace();
-  return true;
+  return issueWorkspace.deletePreviousBlock(owner, blockId);
 }
 
 function deletePreviousCapsuleBlock(owner, blockId) {
-  const blocks = [...getCapsuleEditorBlocks(owner)];
-  const index = blocks.findIndex((block) => block.id === blockId);
-  if (index <= 0) {
-    return false;
-  }
-  blocks.splice(index - 1, 1);
-  setCapsuleEditorBlocks(owner, blocks);
-  state.ui.capsule.focusTarget = `${owner}:${blockId}`;
-  renderCapsuleWorkspace();
-  return true;
+  return capsuleWorkspace.deletePreviousBlock(owner, blockId);
 }
 
 async function refreshInbox() {
@@ -2133,390 +1973,55 @@ function renderDraftPublishTools(item) {
 }
 
 function renderCapsuleDisplayBlocks(blocks, expanded = false) {
-  return blocks.map((block) => {
-    if (block.type === 'image') {
-      return renderImagePreviewMarkup(block);
-    }
-    if (block.type === 'link') {
-      return renderLinkPreviewMarkup(block);
-    }
-    const collapsed = capsuleNeedsCollapse(block.text) && !expanded;
-    return `<div class="capsule-content ${collapsed ? 'collapsed' : ''}">${renderTextContent(block.text || '')}</div>`;
-  }).join('');
+  return capsuleWorkspace.renderDisplayBlocks(blocks, expanded);
 }
 
 function renderCapsulePreviewBlocks(blocks = [], fallbackText = '') {
-  const previewBlocks = [];
-  const firstMedia = blocks.find((block) => block.type === 'image' || block.type === 'link');
-  const firstText = blocks.find((block) => block.type === 'text' && String(block.text || '').trim());
-
-  if (firstMedia) {
-    if (firstMedia.type === 'image') {
-      previewBlocks.push(renderImagePreviewMarkup(firstMedia));
-    } else {
-      previewBlocks.push(renderLinkPreviewMarkup(firstMedia));
-    }
-  }
-
-  if (firstText) {
-    previewBlocks.push(`<div class="capsule-content collapsed">${renderTextContent(firstText.text || '')}</div>`);
-  } else if (String(fallbackText || '').trim()) {
-    previewBlocks.push(`<div class="capsule-content collapsed">${renderTextContent(fallbackText)}</div>`);
-  }
-
-  if (!previewBlocks.length) {
-    previewBlocks.push('<div class="capsule-content collapsed">暂无正文</div>');
-  }
-
-  return previewBlocks.join('');
+  return capsuleWorkspace.renderPreviewBlocks(blocks, fallbackText);
 }
 
 function getCapsulePreviewText(blocks = [], fallbackText = '') {
-  return getSharedCapsulePreviewText(blocks, fallbackText);
+  return capsuleWorkspace.getPreviewText(blocks, fallbackText);
 }
 
 function renderCapsuleEditorBlocks(owner, blocks) {
-  return blocks.map((block, index) => {
-    const dropZone = `<button class="block-insert-anchor" data-action="capsule-insert-text" data-index="${index}" data-owner="${owner}" data-drop-index="${index}" data-drop-context="capsule" data-drop-owner="${owner}" aria-label="在这里插入内容"></button>`;
-    if (block.type === 'image') {
-      return `
-        ${dropZone}
-        <div class="capsule-block image-block draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="capsule" data-drag-owner="${owner}">
-          ${renderImagePreviewMarkup(block, { removable: true })}
-          <div class="image-inline-actions">
-            ${block.url ? `<button class="ghost small" data-action="image-open-lightbox" data-url="${escapeHtml(block.url || '')}" data-caption="${escapeHtml(block.caption || '')}">查看</button>` : ''}
-            <button class="ghost small" data-action="capsule-edit-image" data-owner="${owner}" data-block-id="${block.id}">编辑</button>
-            <button class="ghost small danger" data-action="capsule-remove-block" data-owner="${owner}" data-block-id="${block.id}">删除</button>
-          </div>
-        </div>
-      `;
-    }
-    if (block.type === 'link') {
-      return `
-        ${dropZone}
-        <div class="capsule-block link-block draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="capsule" data-drag-owner="${owner}">
-          ${renderLinkPreviewMarkup(block, { editable: true, owner, blockId: block.id, editAction: 'capsule-edit-link' })}
-          <div class="image-inline-actions">
-            ${block.url ? `<a class="ghost small" href="${escapeHtml(block.url || '')}" target="_blank" rel="noreferrer noopener">打开</a>` : ''}
-            <button class="ghost small" data-action="capsule-edit-link" data-owner="${owner}" data-block-id="${block.id}">编辑</button>
-            <button class="ghost small danger" data-action="capsule-remove-block" data-owner="${owner}" data-block-id="${block.id}">删除</button>
-          </div>
-        </div>
-      `;
-    }
-    return `
-      ${dropZone}
-      <div class="capsule-block text-block-row">
-        <div class="text-shell compact">
-          <textarea class="capsule-card-editor" data-capsule-text-target="${owner}:${block.id}" placeholder="${index === 0 ? '写点内容，输入 / 可插入图片和链接，输入 # 可以补标签' : ''}">${escapeHtml(block.text || '')}</textarea>
-        </div>
-      </div>
-    `;
-  }).join('') + `<button class="block-insert-anchor" data-action="capsule-insert-text" data-index="${blocks.length}" data-owner="${owner}" data-drop-index="${blocks.length}" data-drop-context="capsule" data-drop-owner="${owner}" aria-label="在这里插入内容"></button>`;
+  return capsuleWorkspace.renderEditorBlocks(owner, blocks);
 }
 
 function renderCapsuleCard(item) {
-  const expanded = Boolean(state.ui.capsule.expanded[item.key]);
-  const editing = Boolean(state.ui.capsule.editing[item.key]);
-  const blocks = editing ? getCapsuleEditorBlocks(item.key) : item.blocks;
-  const tags = editing ? extractCapsuleTagsFromBlocks(blocks) : (item.tags || []);
-  const previewText = editing ? '' : getCapsulePreviewText(blocks, item.text);
-  return `
-    <article class="capsule-card ${item.status}">
-      <div class="item-head">
-        <div class="item-main item-main-compact">
-          <div class="item-meta">
-            <span class="hint item-timestamp">${formatFlowTime(item)}</span>
-          </div>
-        </div>
-        <div class="item-side item-side-compact">
-          <div class="card-status">${renderStatusPill(item.status)}</div>
-        </div>
-      </div>
-      ${editing ? `
-        <div class="capsule-block-list">
-          ${renderCapsuleEditorBlocks(item.key, blocks)}
-        </div>
-        <div class="card-bottom-row">
-          <div class="item-tags">${tags.map((tag) => `<button class="tag-chip" data-action="capsule-filter-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
-        </div>
-        <div class="editor-actions">
-          <button data-action="capsule-save-edit" data-key="${item.key}">保存</button>
-          <button class="ghost" data-action="capsule-cancel-edit" data-key="${item.key}">取消</button>
-        </div>
-      ` : `
-        ${previewText ? `<div class="capsule-preview-body collapsed">${renderTextContent(previewText)}</div>` : ''}
-        <div class="capsule-render-stack">${expanded ? renderCapsuleDisplayBlocks(blocks, true) : renderCapsulePreviewBlocks(blocks, previewFallbackText)}</div>
-        <div class="card-bottom-row">
-          <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${state.ui.capsule.activeTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="capsule-filter-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
-          <div class="card-tools">
-            ${renderDraftPublishTools(item)}
-            ${blocks.some((block) => block.type === 'text' && capsuleNeedsCollapse(block.text || '')) ? `<button class="ghost small compact-tool" data-action="capsule-toggle-expand" data-key="${item.key}">${expanded ? '收起' : '展开'}</button>` : ''}
-            ${item.status !== 'pendingDelete' ? `<button class="ghost small icon-button compact-tool" data-action="capsule-edit" data-key="${item.key}" aria-label="编辑 Capsule">✎</button>` : ''}
-            <button class="ghost small icon-button compact-tool danger" data-action="capsule-delete" data-key="${item.key}" aria-label="删除 Capsule">${item.status === 'pendingDelete' ? '↺' : '🗑'}</button>
-          </div>
-        </div>
-      `}
-    </article>
-  `;
+  return capsuleWorkspace.renderCard(item);
 }
 
 function renderCapsuleWorkspace() {
-  renderModeNavigation();
-  const settings = state.settings;
-  const items = buildCapsuleItems();
-  const { currentPage, totalPages, entries } = paginate(items, state.ui.capsule.page);
-  state.ui.capsule.page = currentPage;
-  const selectedCapsuleTags = state.ui.capsule.activeTags || [];
-
-  elements.modeSubtitle.textContent = '';
-  elements.modePrimary.innerHTML = `
-    <section class="card composer-card section-card">
-      <div class="capsule-block-list">
-        ${renderCapsuleEditorBlocks('composer', getCapsuleEditorBlocks('composer'))}
-      </div>
-      <div id="capsuleTagPreview" class="tag-chips"></div>
-      <div class="composer-actions">
-        <button id="capsulePublishButton" data-action="capsule-publish">发布</button>
-      </div>
-    </section>
-  `;
-
-  elements.modeSecondary.innerHTML = `
-    <section class="card section-card">
-      <div class="capsule-list">
-        ${entries.length ? entries.map(renderCapsuleCard).join('') : '<div class="empty-card"><h3>还没有 Capsule</h3><p class="hint">上面写一条内容，点击发布后就会出现在这里。</p></div>'}
-      </div>
-      ${renderPagination(currentPage, totalPages, 'capsule-page')}
-    </section>
-  `;
-
-  const tagCounts = getTagCounts();
-  elements.modeSide.innerHTML = renderTagSidebar({
-    selectedTags: selectedCapsuleTags,
-    tagCounts,
-    filterAction: 'capsule-filter-tag',
-    clearAction: 'capsule-clear-tags',
-    searchInputId: 'capsuleSearchInput',
-    searchPlaceholder: '搜索 Capsule',
-    searchValue: state.ui.capsule.search
-  });
-  requestAnimationFrame(() => {
-    document.querySelectorAll('[data-capsule-text-target]').forEach((textarea) => autoResizeTextarea(textarea, 44));
-    if (state.ui.capsule.focusTarget) {
-      const target = document.querySelector(`[data-capsule-text-target="${state.ui.capsule.focusTarget}"]`);
-      if (target) {
-        target.focus();
-      }
-      state.ui.capsule.focusTarget = '';
-    }
-    renderCapsuleComposerTagPreview();
-  });
+  capsuleWorkspace.renderWorkspace();
 }
 
 function renderIssueCapsuleBlock(owner, block, expanded) {
-  const contentBlocks = block.blocks?.length ? block.blocks : [createTextBlock(block.text || '')];
-  return `
-    <article class="capsule-preview-card draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="issue" data-drag-owner="${owner}">
-      <div class="item-head">
-        <div class="item-main item-main-compact">
-          <p class="hint">@ 引入的 Capsule block</p>
-        </div>
-        <div class="card-tools">
-          <button class="ghost small" data-action="issue-toggle-capsule" data-block-id="${block.id}">${expanded ? '收起' : '展开'}</button>
-          <button class="ghost small icon-button compact-tool danger" data-action="issue-remove-capsule" data-owner="${owner}" data-block-id="${block.id}" aria-label="删除引用">🗑</button>
-        </div>
-      </div>
-      <div class="capsule-render-stack">
-        ${contentBlocks.map((contentBlock) => {
-          if (contentBlock.type === 'image') {
-            return renderImagePreviewMarkup(contentBlock);
-          }
-          if (contentBlock.type === 'link') {
-            return renderLinkPreviewMarkup(contentBlock);
-          }
-          const collapsed = capsuleNeedsCollapse(contentBlock.text || '') && !expanded;
-          return `<div class="capsule-preview-body ${collapsed ? 'collapsed' : ''}">${renderTextContent(contentBlock.text || '')}</div>`;
-        }).join('')}
-      </div>
-      <div class="item-tags">${(block.tags || []).map((tag) => `<span class="tag-chip">#${escapeHtml(tag)}</span>`).join('')}</div>
-    </article>
-  `;
+  return issueWorkspace.renderCapsuleBlock(owner, block, expanded);
 }
 
 function getIssueEditorTitle(owner = 'composer') {
-  if (owner === 'composer') {
-    return state.ui.issue.editor?.title || '';
-  }
-  return state.ui.issue.editTitles[owner] || '';
+  return issueWorkspace.getEditorTitle(owner);
 }
 
 function setIssueEditorTitle(owner = 'composer', title = '') {
-  if (owner === 'composer') {
-    if (!state.ui.issue.editor) {
-      state.ui.issue.editor = createEmptyIssueEditor();
-    }
-    state.ui.issue.editor.title = title;
-    return;
-  }
-  state.ui.issue.editTitles[owner] = title;
+  issueWorkspace.setEditorTitle(owner, title);
 }
 
 function renderIssueTitleField(owner, value = '', placeholder = '输入 Issue 标题') {
-  return `
-    <div class="issue-title-shell">
-      <input class="issue-title-input" data-issue-title-target="${owner}" type="text" value="${escapeHtml(value || '')}" placeholder="${escapeHtml(placeholder)}" />
-    </div>
-  `;
+  return issueWorkspace.renderTitleField(owner, value, placeholder);
 }
 
 function renderIssueEditorBlocks(owner, blocks) {
-  return blocks
-    .map((block, index) => {
-      const dropBefore = `<button class="block-insert-anchor" data-action="issue-insert-block" data-owner="${owner}" data-index="${index}" data-drop-index="${index}" data-drop-context="issue" data-drop-owner="${owner}" aria-label="在这里插入内容"></button>`;
-      if (block.type === 'text') {
-        return `
-          ${dropBefore}
-          <div class="issue-block text-block-row">
-            <div class="text-shell compact">
-              <textarea class="issue-text-block" data-issue-text-target="${owner}:${block.id}" rows="1" placeholder="${index === 0 ? '输入这一段内容，按 @ 可以插入 Capsule，按 # 可以补标签' : ''}">${escapeHtml(block.text)}</textarea>
-            </div>
-          </div>
-        `;
-      }
-      if (block.type === 'image') {
-        return `
-          ${dropBefore}
-          <div class="issue-block image-block draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="issue" data-drag-owner="${owner}">
-            ${renderImagePreviewMarkup(block, { removable: true })}
-            <div class="image-inline-actions">
-              ${block.url ? `<button class="ghost small" data-action="image-open-lightbox" data-url="${escapeHtml(block.url || '')}" data-caption="${escapeHtml(block.caption || '')}">查看</button>` : ''}
-              <button class="ghost small danger" data-action="issue-remove-block" data-owner="${owner}" data-block-id="${block.id}">删除</button>
-            </div>
-          </div>
-        `;
-      }
-      if (block.type === 'link') {
-        return `
-          ${dropBefore}
-          <div class="issue-block link-block draggable" draggable="true" data-drag-block-id="${block.id}" data-drag-context="issue" data-drag-owner="${owner}">
-            ${renderLinkPreviewMarkup(block, { editable: true, owner, blockId: block.id, editAction: 'issue-edit-link' })}
-            <div class="image-inline-actions">
-              ${block.url ? `<a class="ghost small" href="${escapeHtml(block.url || '')}" target="_blank" rel="noreferrer noopener">打开</a>` : ''}
-              <button class="ghost small" data-action="issue-edit-link" data-owner="${owner}" data-block-id="${block.id}">编辑</button>
-              <button class="ghost small danger" data-action="issue-remove-block" data-owner="${owner}" data-block-id="${block.id}">删除</button>
-            </div>
-          </div>
-        `;
-      }
-      return `${dropBefore}${renderIssueCapsuleBlock(owner, block, Boolean(state.ui.issue.expandedPreview[block.id]))}`;
-    })
-    .join('') + `<button class="block-insert-anchor" data-action="issue-insert-block" data-owner="${owner}" data-index="${blocks.length}" data-drop-index="${blocks.length}" data-drop-context="issue" data-drop-owner="${owner}" aria-label="在这里插入内容"></button>`;
+  return issueWorkspace.renderEditorBlocks(owner, blocks);
 }
 
 function renderIssueCard(item) {
-  const editing = Boolean(state.ui.issue.editing[item.key]);
-  const blocks = editing ? getIssueEditorBlocks(item.key) : item.blocks;
-  const tags = editing ? extractIssueTagsFromBlocks(blocks) : (item.tags || []);
-  return `
-    <article class="issue-list-item ${item.status} ${editing ? 'editing' : ''}">
-      <div class="item-head">
-        <div class="item-main">
-          ${editing
-            ? renderIssueTitleField(item.key, getIssueEditorTitle(item.key), '点击输入标题')
-            : `<button class="item-title-trigger" data-action="issue-load" data-key="${item.key}" type="button">${renderTextContent(item.title)}</button>`}
-          <div class="item-meta">
-            <span class="hint item-timestamp">${formatFlowTime(item)}</span>
-          </div>
-        </div>
-        <div class="item-side">
-          <div class="card-status">${renderStatusPill(item.status)}</div>
-        </div>
-      </div>
-      ${editing ? `
-        <div class="issue-block-list">
-          ${renderIssueEditorBlocks(item.key, blocks)}
-        </div>
-        <div class="card-bottom-row">
-          <div class="item-tags">${tags.map((tag) => `<button class="tag-chip" data-action="issue-filter-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
-        </div>
-        <div class="editor-actions">
-          <button data-action="issue-save-edit" data-key="${item.key}">保存</button>
-          <button class="ghost" data-action="issue-cancel-edit" data-key="${item.key}">取消</button>
-        </div>
-      ` : `
-        ${item.summary ? `<div class="issue-summary">${renderTextContent(item.summary)}</div>` : ''}
-        <div class="card-bottom-row">
-          <div class="item-tags">${tags.map((tag) => `<button class="tag-chip ${state.ui.issue.activeTags.some((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase()) ? 'active' : ''}" data-action="issue-filter-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('')}</div>
-          <div class="card-tools">
-            ${renderDraftPublishTools(item)}
-            ${item.status !== 'pendingDelete' ? `<button class="ghost small icon-button compact-tool" data-action="issue-load" data-key="${item.key}" aria-label="编辑 Issue">✎</button>` : ''}
-            <button class="ghost small icon-button compact-tool danger" data-action="issue-delete" data-key="${item.key}" aria-label="删除 Issue">${item.status === 'pendingDelete' ? '↺' : '🗑'}</button>
-          </div>
-        </div>
-      `}
-    </article>
-  `;
+  return issueWorkspace.renderCard(item);
 }
 
 function renderIssueWorkspace() {
-  renderModeNavigation();
-  const settings = state.settings;
-  const editor = state.ui.issue.editor;
-  const blocksHtml = renderIssueEditorBlocks('composer', editor.blocks);
-
-  const items = buildIssueItems();
-  const { currentPage, totalPages, entries } = paginate(items, state.ui.issue.page);
-  state.ui.issue.page = currentPage;
-  const selectedIssueTags = state.ui.issue.activeTags || [];
-
-  elements.modeSubtitle.textContent = '';
-  elements.modePrimary.innerHTML = `
-    <section class="card issue-editor-card section-card">
-      ${renderIssueTitleField('composer', editor.title || '', '输入这一期的标题')}
-      <div class="issue-block-list">
-        ${blocksHtml}
-      </div>
-      <div id="issueTagPreview" class="tag-chips"></div>
-      <div class="composer-actions">
-        <button data-action="issue-save">保存</button>
-      </div>
-    </section>
-  `;
-
-  elements.modeSecondary.innerHTML = `
-    <section class="card section-card">
-      <div class="issue-list">
-        ${entries.length ? entries.map(renderIssueCard).join('') : '<div class="empty-card"><h3>还没有 Issue</h3><p class="hint">开始写一篇内容，保存后就会出现在这里。</p></div>'}
-      </div>
-      ${renderPagination(currentPage, totalPages, 'issue-page')}
-    </section>
-  `;
-  elements.modeSide.innerHTML = renderTagSidebar({
-    selectedTags: selectedIssueTags,
-    tagCounts: getIssueTagCounts(),
-    filterAction: 'issue-filter-tag',
-    clearAction: 'issue-clear-tags',
-    searchInputId: 'issueSearchInput',
-    searchPlaceholder: '搜索 Issue',
-    searchValue: state.ui.issue.search
-  });
-  requestAnimationFrame(() => {
-    document.querySelectorAll('[data-issue-text-target]').forEach((textarea) => autoResizeTextarea(textarea, 44));
-    if (state.ui.issue.focusTarget) {
-      const target = document.querySelector(`[data-issue-text-target="${state.ui.issue.focusTarget}"]`);
-      if (target) {
-        target.focus();
-      }
-      state.ui.issue.focusTarget = '';
-    } else {
-      const titleInput = document.querySelector('[data-issue-title-target="composer"]');
-      if (titleInput && !editor.title) {
-        titleInput.focus();
-      }
-    }
-    renderIssueComposerTagPreview();
-  });
+  issueWorkspace.renderWorkspace();
 }
 
 function renderPlainEditorForm(kind, item = null) {
@@ -2860,193 +2365,51 @@ async function deletePlainItem(kind, key) {
 }
 
 async function publishCapsuleFromComposer() {
-  const blocks = getCapsuleEditorBlocks('composer');
-  const body = serializeCapsuleBlocks(blocks);
-  if (!body) {
-    showToast('先写点内容，再发布。', 'error');
-    return;
-  }
-  await saveTask({ kind: 'capsule', action: 'create', target: 'auto', body, tags: extractCapsuleTagsFromBlocks(blocks) });
-  state.ui.capsule.composerBlocks = [createTextBlock('')];
-  renderWorkspace();
-  showToast('已加入待发布列表');
+  return capsuleWorkspace.publishFromComposer();
 }
 
 async function saveCapsuleCard(key) {
-  const item = getCapsuleItemByKey(key);
-  const blocks = getCapsuleEditorBlocks(key);
-  const body = serializeCapsuleBlocks(blocks);
-  if (!item || !body) {
-    showToast('内容不能为空。', 'error');
-    return;
-  }
-  if (item.status === 'pendingPublish' && item.fileName) {
-    await saveTask({ kind: 'capsule', action: 'create', target: 'auto', body, fileName: item.fileName, tags: extractCapsuleTagsFromBlocks(blocks), createdAt: item.createdAt });
-  } else {
-    await saveTask({ kind: 'capsule', action: 'update', target: item.id, body, fileName: item.fileName || `update-${item.id}.md`, tags: extractCapsuleTagsFromBlocks(blocks), createdAt: item.createdAt });
-  }
-  delete state.ui.capsule.editing[key];
-  delete state.ui.capsule.editBlocks[key];
-  renderWorkspace();
-  showToast('已保存，状态已更新为待刷新');
+  return capsuleWorkspace.saveCard(key);
 }
 
 async function deleteCapsuleItem(key) {
-  const item = getCapsuleItemByKey(key);
-  if (!item) {
-    return;
-  }
-  if (item.status === 'pendingPublish' && item.fileName) {
-    await deleteDraft(item.fileName);
-    renderWorkspace();
-    showToast('已删除待发布 Capsule');
-    return;
-  }
-  if (item.status === 'pendingDelete' && item.fileName) {
-    await deleteDraft(item.fileName);
-    renderWorkspace();
-    showToast('已取消删除任务');
-    return;
-  }
-  await saveTask({ kind: 'capsule', action: 'delete', target: item.id, body: `删除 Capsule：${item.id}`, fileName: item.fileName || `delete-${item.id}.md`, createdAt: item.createdAt });
-  renderWorkspace();
-  showToast('已标记为待删除');
+  return capsuleWorkspace.deleteItem(key);
 }
 
 async function saveIssueEditor() {
-  const editor = state.ui.issue.editor;
-  const body = serializeIssueBlocks(editor.blocks);
-  if (!body.trim()) {
-    showToast('先写一点内容，再保存。', 'error');
-    return;
-  }
-  await saveTask({
-    kind: 'issue',
-    action: 'create',
-    target: 'auto',
-    title: String(editor.title || '').trim() || inferTitleFromBlocks(editor.blocks, '未命名 Issue'),
-    body,
-    fileName: editor.fileName || '',
-    tags: extractIssueTagsFromBlocks(editor.blocks),
-    createdAt: editor.createdAt || ''
-  });
-  state.ui.issue.editor = createEmptyIssueEditor();
-  renderIssueWorkspace();
-  showToast('已加入待发布列表');
+  return issueWorkspace.saveEditor();
 }
 
 async function saveIssueCard(key) {
-  const item = getIssueItemByKey(key);
-  const blocks = getIssueEditorBlocks(key);
-  const body = serializeIssueBlocks(blocks);
-  const title = String(getIssueEditorTitle(key) || '').trim() || inferTitleFromBlocks(blocks, item?.title || '未命名 Issue');
-  if (!item || !body.trim()) {
-    showToast('内容不能为空。', 'error');
-    return;
-  }
-  if (item.status === 'pendingPublish' && item.fileName) {
-    await saveTask({ kind: 'issue', action: 'create', target: 'auto', title, body, fileName: item.fileName, tags: extractIssueTagsFromBlocks(blocks), createdAt: item.createdAt });
-  } else {
-    await saveTask({ kind: 'issue', action: 'update', target: item.id, title, body, fileName: item.fileName || `update-${item.id}.md`, tags: extractIssueTagsFromBlocks(blocks), createdAt: item.createdAt });
-  }
-  delete state.ui.issue.editing[key];
-  delete state.ui.issue.editBlocks[key];
-  delete state.ui.issue.editTitles[key];
-  renderIssueWorkspace();
-  showToast(item.status === 'pendingPublish' ? '已更新待发布 Issue' : '已保存，状态已更新为待刷新');
+  return issueWorkspace.saveCard(key);
 }
 
 async function deleteIssueItem(key) {
-  const item = getIssueItemByKey(key);
-  if (!item) {
-    return;
-  }
-  if (item.status === 'pendingPublish' && item.fileName) {
-    await deleteDraft(item.fileName);
-    delete state.ui.issue.editing[key];
-    delete state.ui.issue.editBlocks[key];
-    delete state.ui.issue.editTitles[key];
-    renderIssueWorkspace();
-    showToast('已删除待发布 Issue');
-    return;
-  }
-  if (item.status === 'pendingDelete' && item.fileName) {
-    await deleteDraft(item.fileName);
-    delete state.ui.issue.editing[key];
-    delete state.ui.issue.editBlocks[key];
-    delete state.ui.issue.editTitles[key];
-    renderIssueWorkspace();
-    showToast('已取消删除任务');
-    return;
-  }
-  await saveTask({ kind: 'issue', action: 'delete', target: item.id, body: `删除 Issue：${item.id}`, fileName: item.fileName || `delete-${item.id}.md`, createdAt: item.createdAt });
-  delete state.ui.issue.editing[key];
-  delete state.ui.issue.editBlocks[key];
-  delete state.ui.issue.editTitles[key];
-  renderIssueWorkspace();
-  showToast('已标记为待删除');
+  return issueWorkspace.deleteItem(key);
 }
 
 function removeIssueBlock(owner, blockId) {
-  const blocks = getIssueEditorBlocks(owner).filter((block) => block.id !== blockId);
-  setIssueEditorBlocks(owner, blocks);
-  renderIssueWorkspace();
+  issueWorkspace.removeBlock(owner, blockId);
 }
 
 function findIssueBlock(owner, blockId) {
-  return getIssueEditorBlocks(owner).find((block) => block.id === blockId);
+  return issueWorkspace.findBlock(owner, blockId);
 }
 
 function updateIssueLink(owner, blockId) {
-  const block = findIssueBlock(owner, blockId);
-  if (!block) {
-    return;
-  }
-  collectLinkBlockInput({ text: block.text || '', url: block.url || '' }).then((link) => {
-    if (!link) {
-      return;
-    }
-    block.text = link.text || link.url;
-    block.url = link.url;
-    renderIssueWorkspace();
-  });
+  issueWorkspace.updateLink(owner, blockId);
 }
 
 function insertIssueBlock(owner, index) {
-  const currentBlocks = [...getIssueEditorBlocks(owner)];
-  if (!canInsertBetweenBlocks(currentBlocks, index)) {
-    showToast('两个空白 block 之间不能继续新增。', 'error');
-    return;
-  }
-  const block = createTextBlock('');
-  const blocks = currentBlocks;
-  blocks.splice(index, 0, block);
-  setIssueEditorBlocks(owner, blocks);
-  state.ui.issue.focusTarget = `${owner}:${block.id}`;
-  renderIssueWorkspace();
+  issueWorkspace.insertBlock(owner, index);
 }
 
 function moveIssueBlock(owner, blockId, insertIndex) {
-  const blocks = [...getIssueEditorBlocks(owner)];
-  const currentIndex = blocks.findIndex((block) => block.id === blockId);
-  if (currentIndex === -1) {
-    return;
-  }
-  const [movedBlock] = blocks.splice(currentIndex, 1);
-  let safeIndex = Math.max(0, Math.min(insertIndex, blocks.length));
-  if (currentIndex < insertIndex) {
-    safeIndex -= 1;
-  }
-  blocks.splice(Math.max(0, safeIndex), 0, movedBlock);
-  setIssueEditorBlocks(owner, blocks);
-  renderIssueWorkspace();
+  issueWorkspace.moveBlock(owner, blockId, insertIndex);
 }
 
 function syncIssueBlock(owner, blockId, text) {
-  const block = getIssueEditorBlocks(owner).find((item) => item.id === blockId);
-  if (block) {
-    block.text = text;
-  }
+  issueWorkspace.syncBlock(owner, blockId, text);
 }
 
 function setMode(mode) {
